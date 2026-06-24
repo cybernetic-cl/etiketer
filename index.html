@@ -236,7 +236,9 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .ecard-sub { font-size: 12px; color: var(--muted); margin-bottom: 9px; }
 .chips { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 11px; }
 .chip { background: var(--surf2); border: 1px solid var(--border); border-radius: 5px; font-size: 11px; color: var(--muted); padding: 2px 7px; font-family: 'DM Mono', monospace; }
-.ecard-acts { display: flex; gap: 8px; }
+.ecard-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn-delete { background: #fff0f0; color: var(--red); border: 1.5px solid #fecaca; }
+.btn-delete:hover { background: var(--red); color: #fff; border-color: var(--red); }
 
 /* ── Modal ── */
 .modal-ov { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 200; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
@@ -900,6 +902,7 @@ function renderLista(lista){
             <button class="btn btn-dark btn-sm" onclick="abrirModal('${e.id}')">🖨️ Imprimir</button>
             <button class="btn btn-outline btn-sm" onclick="abrirEdit('${e.id}')">✏️ Editar</button>
             <button class="btn btn-outline btn-sm" onclick="copyZPLcard('${e.id}')">📋 ZPL</button>
+            <button class="btn btn-delete btn-sm" onclick="eliminarCard('${e.id}','${e.titulo_completo||e.titulo||''}')">🗑</button>
           </div>
         </div>
       </div>`).join('')}</div>`;
@@ -1088,6 +1091,65 @@ async function guardarEdit(id){
   } catch(err){ toast('Error: '+err.message,'err'); }
 }
 
+function eliminarCard(id, nombre){
+  // Mini confirm inline
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:2000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:14px;padding:28px 24px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.15);';
+
+  const icon = document.createElement('div');
+  icon.style.cssText = 'font-size:40px;margin-bottom:10px;';
+  icon.textContent = '🗑️';
+
+  const h = document.createElement('div');
+  h.style.cssText = 'font-family:"Bebas Neue",sans-serif;font-size:20px;letter-spacing:1px;color:#0f1117;margin-bottom:6px;';
+  h.textContent = 'Eliminar etiqueta';
+
+  const sub = document.createElement('div');
+  sub.style.cssText = 'font-size:13px;color:#6b7280;margin-bottom:22px;line-height:1.5;';
+  sub.textContent = nombre ? '"' + nombre + '"' : 'Esta acción no se puede deshacer.';
+
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:10px;justify-content:center;';
+
+  const btnCancel = document.createElement('button');
+  btnCancel.className = 'btn btn-outline';
+  btnCancel.style.cssText = 'flex:1;justify-content:center;';
+  btnCancel.textContent = 'Cancelar';
+  btnCancel.onclick = () => document.body.removeChild(ov);
+
+  const btnDel = document.createElement('button');
+  btnDel.className = 'btn';
+  btnDel.style.cssText = 'flex:1;justify-content:center;background:#dc2626;color:#fff;';
+  btnDel.textContent = 'Eliminar';
+  btnDel.onclick = async () => {
+    btnDel.textContent = '...';
+    btnDel.disabled = true;
+    try {
+      await window.$del(window.$doc(id));
+      document.body.removeChild(ov);
+      todas = todas.filter(x => x.id !== id);
+      renderLista(todas);
+      toast('Etiqueta eliminada', 'ok');
+    } catch(e) {
+      toast('Error: ' + e.message, 'err');
+      document.body.removeChild(ov);
+    }
+  };
+
+  btnRow.appendChild(btnCancel);
+  btnRow.appendChild(btnDel);
+  box.appendChild(icon);
+  box.appendChild(h);
+  box.appendChild(sub);
+  box.appendChild(btnRow);
+  ov.appendChild(box);
+  ov.addEventListener('click', e => { if(e.target===ov) document.body.removeChild(ov); });
+  document.body.appendChild(ov);
+}
+
 function copyZPLcard(id){
   const e=todas.find(x=>x.id===id); if(!e) return;
   navigator.clipboard.writeText(buildZPL(e)).then(()=>toast('ZPL copiado ✓','ok'));
@@ -1117,6 +1179,7 @@ window.abrirModal=abrirModal; window.cerrarModal=cerrarModal;
 window.setPrintMode=setPrintMode; window.ejecutarImpresion=ejecutarImpresion;
 window.abrirEdit=abrirEdit; window.cerrarEdit=cerrarEdit; window.guardarEdit=guardarEdit;
 window.mostrarConfirmacion=mostrarConfirmacion;
+window.eliminarCard=eliminarCard;
 window.imprimir=imprimir; window.copiarZPL=copiarZPL; window.copyZPLcard=copyZPLcard;
 
 // ══ INIT ══
