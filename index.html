@@ -76,13 +76,13 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 
 /* Radios */
 .rg { display: flex; flex-wrap: wrap; gap: 5px; }
-.ro input[type=radio] { display: none; }
+.ro input[type=checkbox] { display: none; }
 .ro label {
   display: block; background: var(--surf2); border: 1.5px solid var(--border);
   border-radius: 6px; padding: 4px 11px; font-size: 12px; font-weight: 500;
   cursor: pointer; color: var(--muted); transition: all .15s; white-space: nowrap;
 }
-.ro input:checked + label { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ro input[type=checkbox]:checked + label { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 /* Separador de grupo */
 .rg-section { font-size: 10px; font-weight: 600; color: #bbb; text-transform: uppercase; letter-spacing: .5px; width: 100%; padding-top: 4px; }
@@ -243,6 +243,14 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .modal-ov.open { display: flex; }
 .modal { background: #fff; border: 1px solid var(--border); border-radius: 14px; width: 90vw; max-width: 800px; max-height: 90vh; overflow-y: auto; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,.15); }
 .modal-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.print-qty-row { display: flex; align-items: center; gap: 10px; background: var(--surf2); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; }
+.print-qty-row label { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+.edit-inp { width:100%; background:var(--surf2); border:1.5px solid var(--border); border-radius:7px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; padding:8px 12px; outline:none; transition: border-color .15s; }
+.edit-inp:focus { border-color:var(--indigo); background:#fff; }
+.print-qty-row input { width: 70px; text-align: center; background: #fff; border: 1.5px solid var(--border); border-radius: 7px; font-size: 15px; font-weight: 700; padding: 6px 8px; outline: none; }
+.print-mode-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.mode-btn { flex: 1; padding: 9px; border-radius: 7px; border: 1.5px solid var(--border); background: var(--surf2); font-family: 'DM Sans',sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; color: var(--muted); }
+.mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .modal-hdr h2 { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; }
 .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); }
 .modal-close:hover { color: var(--red); }
@@ -272,8 +280,17 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 @media print {
   body * { visibility: hidden !important; }
   #print-area, #print-area * { visibility: visible !important; }
-  #print-area { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #fff; }
-  #print-area .lp { width: 567px !important; height: 378px !important; transform: none !important; margin: 0 !important; box-shadow: none !important; border: 0.5mm solid #ccc !important; }
+  #print-area {
+    position: fixed; inset: 0; background: #fff;
+    display: flex; flex-wrap: wrap; align-content: flex-start;
+    gap: 4mm; padding: 8mm; align-items: flex-start; justify-content: flex-start;
+  }
+  #print-area .lp {
+    width: 567px !important; height: 378px !important;
+    transform: none !important; margin: 0 !important;
+    box-shadow: none !important; border: 0.5mm solid #ccc !important;
+    page-break-inside: avoid; flex-shrink: 0;
+  }
 }
 </style>
 </head>
@@ -319,7 +336,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       <div class="field">
         <label>Contenido Neto</label>
         <div class="rg" id="cont-group"></div>
-        <input id="f-cont-custom" type="text" placeholder="Otro (ej: 20 Litros, 50 Kilos...)" style="margin-top:8px;" oninput="renderPreview()">
+        <input id="f-cont-custom" type="text" placeholder="Otro (ej: 20 Litros, 50 Kilos...)" style="margin-top:8px;" oninput="if(this.value){selConts=[];document.querySelectorAll('#cont-group input').forEach(i=>i.checked=false);}renderPreview()">
       </div>
 
       <div class="field">
@@ -371,6 +388,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     <div class="panel">
       <div class="ph">
         <span class="ph-title">Vista Previa — 15 × 10 cm</span>
+        <span id="preview-count" style="font-size:11px;font-weight:600;color:var(--indigo);background:#ede9fe;padding:2px 8px;border-radius:12px;"></span>
       </div>
       <div style="padding:0;">
         <div class="pv-outer">
@@ -400,7 +418,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   </div>
 </div>
 
-<!-- Modal -->
+<!-- Modal ver/imprimir -->
 <div class="modal-ov" id="modal-ov" onclick="if(event.target===this)cerrarModal()">
   <div class="modal">
     <div class="modal-hdr">
@@ -411,13 +429,24 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   </div>
 </div>
 
+<!-- Modal editar -->
+<div class="modal-ov" id="edit-ov" onclick="if(event.target===this)cerrarEdit()">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-hdr">
+      <h2>✏️ Editar Etiqueta</h2>
+      <button class="modal-close" onclick="cerrarEdit()">✕</button>
+    </div>
+    <div id="edit-body"></div>
+  </div>
+</div>
+
 <div id="print-area" style="display:none;"></div>
 <div id="toast"></div>
 
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp }
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 const cfg = {
   apiKey:"AIzaSyBdbwTXVTKY1v6T0QsOdBfXeBzS4heZwjs",
@@ -432,6 +461,8 @@ try {
   const db  = getFirestore(app);
   window.$db=db; window.$col=(n)=>collection(db,n);
   window.$add=addDoc; window.$get=getDocs;
+  window.$doc=(id)=>doc(db,'etiquetas',id);
+  window.$upd=updateDoc; window.$del=deleteDoc;
   window.$q=query; window.$ord=orderBy; window.$ts=serverTimestamp;
   document.getElementById('fb-dot').className='fb-dot ok';
   document.getElementById('fb-label').textContent='Firebase OK';
@@ -452,9 +483,9 @@ const LOGOS = {
 const LOGO_TEXT = { dmp:'DMP', aio:'AIO', masco:'MASCO' };
 
 // ══ OPCIONES CONTENIDO ══
-const OPTS_PESO   = ['100 gr','250 gr','500 gr','¼ Kilo','½ Kilo','1 Kilo','5 Kilos','10 Kilos','25 Kilos'];
+const OPTS_PESO   = ['100 gr','250 gr','500 gr','1 Kilo','5 Kilos','10 Kilos','25 Kilos'];
 const OPTS_LIQUID = ['500 ml','1 Litro','1 Galón','5 Litros','20 Litros'];
-let selCont = '1 Kilo';
+let selConts = ['1 Kilo'];
 
 (function initRadios(){
   const g = document.getElementById('cont-group');
@@ -463,17 +494,18 @@ let selCont = '1 Kilo';
     s.className = 'rg-section'; s.textContent = lbl; return s;
   };
   g.appendChild(mkSection('Peso'));
-  OPTS_PESO.forEach((o,i) => addRadio(g, o, 'p'+i));
+  OPTS_PESO.forEach((o,i) => addRadio(g, o, 'p'+i, selConts.includes(o)));
   g.appendChild(mkSection('Líquidos'));
-  OPTS_LIQUID.forEach((o,i) => addRadio(g, o, 'l'+i));
+  OPTS_LIQUID.forEach((o,i) => addRadio(g, o, 'l'+i, selConts.includes(o)));
 })();
 
-function addRadio(g, o, id) {
+function addRadio(g, o, id, checked=false) {
   const d = document.createElement('div');
   d.className = 'ro';
-  d.innerHTML = `<input type="radio" name="cont" id="co${id}" value="${o}" ${o===selCont?'checked':''}><label for="co${id}">${o}</label>`;
+  d.innerHTML = `<input type="checkbox" id="co${id}" value="${o}" ${checked?'checked':''}><label for="co${id}">${o}</label>`;
   d.querySelector('input').addEventListener('change', function(){
-    selCont = this.value;
+    if(this.checked && !selConts.includes(o)) selConts.push(o);
+    else selConts = selConts.filter(x=>x!==o);
     document.getElementById('f-cont-custom').value = '';
     renderPreview();
   });
@@ -507,12 +539,15 @@ function getEAN(){ const v=(document.getElementById('f-ean').value||'').trim(); 
 
 // ══ DATOS ══
 function datos(){
-  const custom = document.getElementById('f-cont-custom').value.trim();
   return {
     logo:      document.getElementById('f-logo').value    ||'dmp',
     titulo:    document.getElementById('f-titulo').value  ||'PRODUCTO',
     subtitulo: document.getElementById('f-subtitulo').value||'',
-    contenido: custom||selCont,
+    contenidos: (()=>{
+      const custom = document.getElementById('f-cont-custom').value.trim();
+      if(custom) return [custom];
+      return selConts.length ? [...selConts] : ['1 Kilo'];
+    })(),
     venc:      (()=>{
       const auto = document.getElementById('f-venc-auto').checked;
       if(auto){
@@ -654,10 +689,15 @@ function renderPreview(){
   document.getElementById('f-ean').value = curEAN;
   document.getElementById('ean-hint').textContent = curEAN;
   const d = datos();
+  // Preview shows first selected contenido
+  const previewD = {...d, contenido: d.contenidos[0]||'—'};
   const el = document.getElementById('preview-main');
-  el.innerHTML = labelHTML(d,'prev');
-  setTimeout(()=>drawBC(d.ean13,'bc-prev'),80);
-  document.getElementById('zpl-out').textContent = buildZPL(d);
+  el.innerHTML = labelHTML(previewD,'prev');
+  setTimeout(()=>drawBC(previewD.ean13,'bc-prev'),80);
+  document.getElementById('zpl-out').textContent = d.contenidos.map(cont=>buildZPL({...d,contenido:cont})).join('\n\n; ── siguiente etiqueta ──\n\n');
+  // Show badge count
+  const badge = document.getElementById('preview-count');
+  if(badge) badge.textContent = d.contenidos.length > 1 ? d.contenidos.length+' variantes' : '';
 }
 
 // ══ ZPL ══
@@ -736,10 +776,25 @@ function copiarZPL(){
 // ══ GUARDAR ══
 async function guardar(){
   if(!window.$db){ toast('Firebase no conectado','err'); return; }
-  const d=datos();
+  const d = datos();
+  const base = {...d};
+  delete base.contenidos;
   try {
-    await window.$add(window.$col('etiquetas'),{...d,zpl:buildZPL(d),created_at:window.$ts()});
-    toast('Etiqueta guardada ✓','ok');
+    let count = 0;
+    for(const cont of d.contenidos){
+      const ean = makeEAN(); // EAN único por variante
+      const doc = {
+        ...base,
+        contenido: cont,
+        titulo_completo: d.titulo + ' - ' + cont,
+        ean13: ean,
+        zpl: buildZPL({...base, contenido: cont, ean13: ean}),
+        created_at: window.$ts(),
+      };
+      await window.$add(window.$col('etiquetas'), doc);
+      count++;
+    }
+    toast(count > 1 ? count+' etiquetas guardadas ✓' : 'Etiqueta guardada ✓', 'ok');
   } catch(e){ toast('Error: '+e.message,'err'); }
 }
 
@@ -784,7 +839,8 @@ function renderLista(lista){
             <span class="chip">${(e.logo||'').toUpperCase()}</span>
           </div>
           <div class="ecard-acts">
-            <button class="btn btn-dark btn-sm" onclick="abrirModal('${e.id}')">👁 Ver / Imprimir</button>
+            <button class="btn btn-dark btn-sm" onclick="abrirModal('${e.id}')">🖨️ Imprimir</button>
+            <button class="btn btn-outline btn-sm" onclick="abrirEdit('${e.id}')">✏️ Editar</button>
             <button class="btn btn-outline btn-sm" onclick="copyZPLcard('${e.id}')">📋 ZPL</button>
           </div>
         </div>
@@ -792,33 +848,186 @@ function renderLista(lista){
   setTimeout(()=>lista.forEach(e=>drawBC(e.ean13,'bc-c'+e.id)),120);
 }
 
-// ══ MODAL ══
+// ══ MODAL VER/IMPRIMIR ══
+let printMode = 'html'; // 'html' | 'zpl'
+
 function abrirModal(id){
-  const e=todas.find(x=>x.id===id); if(!e) return;
-  document.getElementById('modal-titulo').textContent=e.titulo||'Etiqueta';
-  document.getElementById('modal-body').innerHTML=`
-    <div style="background:#c8ccd4;border-radius:8px;padding:18px;display:flex;justify-content:center;overflow:hidden;margin-bottom:16px;">
-      <div class="lp">${labelHTML(e,'m'+id)}</div>
-    </div>
-    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-      <button class="btn btn-dark" onclick="imprimir('${id}')">🖨️ Imprimir</button>
-      <button class="btn btn-outline" onclick="copyZPLcard('${id}')">📋 Copiar ZPL</button>
-    </div>
-    <div class="zpl-box">
-      <div class="zpl-hdr"><span class="zpl-lbl">ZPL</span></div>
-      <pre style="font-family:'DM Mono',monospace;font-size:10px;color:#64b5f6;white-space:pre-wrap;max-height:150px;overflow-y:auto;">${buildZPL(e)}</pre>
-    </div>`;
+  const e = todas.find(x=>x.id===id); if(!e) return;
+
+  document.getElementById('modal-titulo').textContent = e.titulo_completo||e.titulo||'Etiqueta';
+
+  // Build modal with DOM to avoid backtick/quote escaping issues
+  const body = document.getElementById('modal-body');
+  body.innerHTML = '';
+
+  // Preview
+  const prev = document.createElement('div');
+  prev.style.cssText = 'background:#c8ccd4;border-radius:8px;padding:16px;display:flex;justify-content:center;overflow:hidden;margin-bottom:16px;';
+  const lpDiv = document.createElement('div');
+  lpDiv.className = 'lp';
+  lpDiv.innerHTML = labelHTML(e, 'm'+id);
+  prev.appendChild(lpDiv);
+  body.appendChild(prev);
+
+  // Qty row
+  const qtyRow = document.createElement('div');
+  qtyRow.className = 'print-qty-row';
+  qtyRow.innerHTML = '<label>Cantidad de etiquetas</label>';
+  const qtyIn = document.createElement('input');
+  qtyIn.type='number'; qtyIn.id='print-qty'; qtyIn.value='1'; qtyIn.min='1'; qtyIn.max='500';
+  qtyRow.appendChild(qtyIn);
+  body.appendChild(qtyRow);
+
+  // Mode buttons
+  const modeRow = document.createElement('div');
+  modeRow.className = 'print-mode-row';
+  const btnHtml = document.createElement('button');
+  btnHtml.className='mode-btn active'; btnHtml.id='mode-html';
+  btnHtml.textContent='Imprimir HTML'; btnHtml.onclick=()=>setPrintMode('html');
+  const btnZpl = document.createElement('button');
+  btnZpl.className='mode-btn'; btnZpl.id='mode-zpl';
+  btnZpl.textContent='Enviar ZPL'; btnZpl.onclick=()=>setPrintMode('zpl');
+  modeRow.appendChild(btnHtml); modeRow.appendChild(btnZpl);
+  body.appendChild(modeRow);
+
+  // Action buttons
+  const actRow = document.createElement('div');
+  actRow.style.cssText = 'display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;';
+  const btnEjec = document.createElement('button');
+  btnEjec.className='btn btn-dark'; btnEjec.style.cssText='flex:1;justify-content:center;';
+  btnEjec.textContent='Ejecutar'; btnEjec.onclick=()=>ejecutarImpresion(id);
+  const btnCopyZpl = document.createElement('button');
+  btnCopyZpl.className='btn btn-outline'; btnCopyZpl.textContent='Copiar ZPL';
+  btnCopyZpl.onclick=()=>copyZPLcard(id);
+  actRow.appendChild(btnEjec); actRow.appendChild(btnCopyZpl);
+  body.appendChild(actRow);
+
+  // ZPL preview box (set textContent to avoid injection)
+  const zplBox = document.createElement('div');
+  zplBox.className='zpl-box';
+  const zplHdr = document.createElement('div');
+  zplHdr.className='zpl-hdr';
+  zplHdr.innerHTML='<span class="zpl-lbl">ZPL Preview</span>';
+  const zplPre = document.createElement('pre');
+  zplPre.style.cssText='font-size:10px;color:#64b5f6;white-space:pre-wrap;max-height:130px;overflow-y:auto;';
+  zplPre.textContent = buildZPL(e); // safe: textContent escapes everything
+  zplBox.appendChild(zplHdr); zplBox.appendChild(zplPre);
+  body.appendChild(zplBox);
+
   document.getElementById('modal-ov').classList.add('open');
-  setTimeout(()=>drawBC(e.ean13,'bc-m'+id),60);
+  setTimeout(()=>drawBC(e.ean13,'bc-m'+id), 80);
 }
+
+function setPrintMode(mode){
+  printMode = mode;
+  document.getElementById('mode-html').classList.toggle('active', mode==='html');
+  document.getElementById('mode-zpl').classList.toggle('active',  mode==='zpl');
+}
+
+function ejecutarImpresion(id){
+  const e   = todas.find(x=>x.id===id); if(!e) return;
+  const qty = Math.max(1, parseInt(document.getElementById('print-qty').value)||1);
+  if(printMode === 'zpl'){
+    // Genera N copias ZPL concatenadas
+    const zpl = buildZPL(e);
+    const sep = '\n';
+    const multi = Array(qty).fill(zpl).join(sep);
+    navigator.clipboard.writeText(multi).then(()=>toast(`ZPL x${qty} copiado ✓`,'ok'));
+  } else {
+    // Imprime HTML con N copias
+    imprimirHTML(e, qty);
+  }
+}
+
 function cerrarModal(){ document.getElementById('modal-ov').classList.remove('open'); }
+
+function imprimirHTML(e, qty){
+  const pa = document.getElementById('print-area');
+  pa.style.display = 'flex';
+  pa.style.flexWrap = 'wrap';
+  pa.style.gap = '4mm';
+  // Generar N copias con IDs únicos
+  let html = '';
+  for(let i=0; i<qty; i++){
+    html += `<div class="lp" style="page-break-inside:avoid;">${labelHTML(e,'pr'+i)}</div>`;
+  }
+  pa.innerHTML = html;
+  // Dibujar barcodes en todas las copias
+  let drawn = 0;
+  const tryDraw = () => {
+    for(let i=0; i<qty; i++) drawBC(e.ean13, 'bc-pr'+i);
+    drawn++;
+    if(drawn < 2) setTimeout(tryDraw, 150);
+    else setTimeout(()=>{ window.print(); pa.style.display='none'; }, 300);
+  };
+  setTimeout(tryDraw, 100);
+}
 
 function imprimir(id){
   const e=todas.find(x=>x.id===id); if(!e) return;
-  const pa=document.getElementById('print-area');
-  pa.style.display='flex';
-  pa.innerHTML=`<div class="lp">${labelHTML(e,'p'+id)}</div>`;
-  setTimeout(()=>{ drawBC(e.ean13,'bc-p'+id); setTimeout(()=>{ window.print(); pa.style.display='none'; },200); },100);
+  imprimirHTML(e, 1);
+}
+
+// ══ EDITAR ══
+const EDIT_FIELDS = [
+  { id:'ed-titulo',    label:'Título',           type:'text',  key:'titulo'    },
+  { id:'ed-subtitulo', label:'Subtítulo',         type:'text',  key:'subtitulo' },
+  { id:'ed-contenido', label:'Contenido Neto',    type:'text',  key:'contenido' },
+  { id:'ed-venc',      label:'Fecha Vencimiento', type:'month', key:'venc'      },
+  { id:'ed-pais',      label:'País de Origen',    type:'text',  key:'pais'      },
+  { id:'ed-dosis',     label:'Dosis',             type:'text',  key:'dosis'     },
+  { id:'ed-footer',    label:'Footer',            type:'text',  key:'footer'    },
+];
+
+function abrirEdit(id){
+  const e = todas.find(x=>x.id===id); if(!e) return;
+  const body = document.getElementById('edit-body');
+
+  // Build form using DOM — avoids quote escaping issues
+  const inp = (f) => `
+    <div class="field">
+      <label>${f.label}</label>
+      <input id="${f.id}" type="${f.type}" class="edit-inp">
+    </div>`;
+  body.innerHTML = EDIT_FIELDS.map(inp).join('') + `
+    <div style="display:flex;gap:8px;margin-top:18px;">
+      <button class="btn btn-green" id="btn-save-edit" style="flex:1;justify-content:center;">💾 Guardar Cambios</button>
+      <button class="btn btn-outline" onclick="cerrarEdit()">Cancelar</button>
+    </div>`;
+
+  // Set values safely via .value property
+  EDIT_FIELDS.forEach(f => {
+    document.getElementById(f.id).value = e[f.key] || '';
+  });
+  document.getElementById('btn-save-edit').onclick = () => guardarEdit(id);
+  document.getElementById('edit-ov').classList.add('open');
+}
+
+function cerrarEdit(){ document.getElementById('edit-ov').classList.remove('open'); }
+
+async function guardarEdit(id){
+  if(!window.$db){ toast('Firebase no conectado','err'); return; }
+  const titulo    = document.getElementById('ed-titulo').value.trim();
+  const contenido = document.getElementById('ed-contenido').value.trim();
+  const updates = {
+    titulo,
+    subtitulo:      document.getElementById('ed-subtitulo').value.trim(),
+    contenido,
+    titulo_completo: titulo + (contenido ? ' - '+contenido : ''),
+    venc:           document.getElementById('ed-venc').value,
+    pais:           document.getElementById('ed-pais').value.trim(),
+    dosis:          document.getElementById('ed-dosis').value.trim(),
+    footer:         document.getElementById('ed-footer').value.trim(),
+  };
+  // Recalcular ZPL con datos actualizados
+  const e = todas.find(x=>x.id===id);
+  if(e){ updates.zpl = buildZPL({...e,...updates}); }
+  try {
+    await window.$upd(window.$doc(id), updates);
+    toast('Cambios guardados ✓','ok');
+    cerrarEdit();
+    cargar(); // recargar lista
+  } catch(err){ toast('Error: '+err.message,'err'); }
 }
 
 function copyZPLcard(id){
@@ -847,6 +1056,8 @@ window.showTab=showTab; window.renderPreview=renderPreview; window.nuevoEAN=nuev
 window.toggleVencAuto=toggleVencAuto; window.calcVencAuto=calcVencAuto;
 window.guardar=guardar; window.cargar=cargar; window.filtrar=filtrar;
 window.abrirModal=abrirModal; window.cerrarModal=cerrarModal;
+window.setPrintMode=setPrintMode; window.ejecutarImpresion=ejecutarImpresion;
+window.abrirEdit=abrirEdit; window.cerrarEdit=cerrarEdit; window.guardarEdit=guardarEdit;
 window.imprimir=imprimir; window.copiarZPL=copiarZPL; window.copyZPLcard=copyZPLcard;
 
 // ══ INIT ══
