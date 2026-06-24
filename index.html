@@ -280,19 +280,21 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 
 /* ── Print ── */
 @media print {
+  @page { size: 150mm 100mm landscape; margin: 0; }
   body * { visibility: hidden !important; }
   #print-area, #print-area * { visibility: visible !important; }
   #print-area {
     position: fixed; inset: 0; background: #fff;
     display: flex; flex-wrap: wrap; align-content: flex-start;
-    gap: 4mm; padding: 8mm; align-items: flex-start; justify-content: flex-start;
+    gap: 0; padding: 0; align-items: flex-start; justify-content: flex-start;
   }
   #print-area .lp {
-    width: 567px !important; height: 378px !important;
+    width: 150mm !important; height: 100mm !important;
     transform: none !important; margin: 0 !important;
-    box-shadow: none !important; border: 0.5mm solid #ccc !important;
-    page-break-inside: avoid; flex-shrink: 0;
+    box-shadow: none !important; border: none !important;
+    page-break-after: always; flex-shrink: 0;
   }
+  #print-area .lp:last-child { page-break-after: avoid; }
 }
 </style>
 </head>
