@@ -703,70 +703,101 @@ function renderPreview(){
 }
 
 // ══ ZPL ══
+// Impresora: rollo 10cm ancho, etiqueta 15cm largo
+// ZPL: PW=812 dots (10cm@203dpi), LL=1218 dots (15cm@203dpi)
+// Orientación: ^FO x,y donde x=0 es borde izquierdo del rollo (10cm)
+//              y=0 es inicio de la etiqueta, aumenta hacia los 15cm
+// Layout igual que el HTML:
+//   Columna IZQ  (texto seguridad): y=0..240, x=0..200
+//   Columna CTR  (logo/titulo/cont): y=0..1218, x=200..630
+//   Columna DER  (info+barcode):    y=0..1218, x=630..812
 function buildZPL(d){
-  const W=1218,H=812;
+  const W = 812;   // 10cm @ 203dpi
+  const H = 1218;  // 15cm @ 203dpi
   const _rv = resolveVenc(d);
-  const fv = _rv?(([y,m])=>`${m}/${y.slice(2)}`)(_rv.split('-')):'--/--';
-  const selP = STD_PESO.indexOf(d.contenido);
-  const selL = STD_LIQUID.indexOf(d.contenido);
-  const lbP  = ['1/4 Kilo','1/2 Kilo','1 Kilo'];
-  const lbL  = ['500ml','1 Litro','1 Galon','5 Litros'];
-  let cZPL='';
-  if(selP>=0){
-    [820,920,1020].forEach((x,i)=>{
-      cZPL+=`^FO${x},630^GC18,3,B^FS\n`;
-      if(i===selP) cZPL+=`^FO${x+2},632^GC14,14,B^FS\n`;
-      cZPL+=`^FO${x-14},652^A0N,13,13^FD${lbP[i]}^FS\n`;
-    });
-  } else if(selL>=0){
-    [800,880,960,1040].forEach((x,i)=>{
-      cZPL+=`^FO${x},630^GC18,3,B^FS\n`;
-      if(i===selL) cZPL+=`^FO${x+2},632^GC14,14,B^FS\n`;
-      cZPL+=`^FO${x-14},652^A0N,12,12^FD${lbL[i]}^FS\n`;
-    });
-  } else {
-    cZPL=`^FO790,635^A0N,22,22^FD${d.contenido}^FS\n`;
-  }
-  const tituloLine = d.titulo.length>14
-    ? `^FO340,92^A0N,52,50^FD${d.titulo}^FS`
-    : `^FO340,88^A0N,62,58^FD${d.titulo}^FS`;
+  const fv = _rv ? (([y,m]) => m+'/'+y.slice(2))(_rv.split('-')) : '';
+  const logoTxt = LOGO_TEXT[(d.logo||'dmp').toLowerCase()] || 'DMP';
+
+  // Título — tamaño adaptativo
+  const tSize = d.titulo.length > 16 ? 44 : d.titulo.length > 12 ? 52 : 60;
+
+  // Contenido neto
+  const contLine = d.contenido || '';
+
+  // Campos opcionales derecha
+  const infoZpl = [
+    d.dosis ? `^FO635,${H-210}^A0N,16,16^FDDosis: ${d.dosis}^FS` : '',
+    d.pais  ? `^FO635,${H-190}^A0N,16,16^FDOrigen: ${d.pais}^FS` : '',
+    fv      ? `^FO635,${H-170}^A0N,16,16^FDVenc: ${fv}^FS` : '',
+  ].filter(Boolean).join('\n');
+
+  // Footer
+  const footerZpl = d.footer
+    ? `^FO200,${H-18}^A0N,13,13^FD${d.footer.substring(0,70)}^FS`
+    : '';
+
   return `^XA
 ^PW${W}
 ^LL${H}
 ^CI28
-^FO0,0^GB${W},${H},3^FS
-^FO310,0^GB3,${H},3^FS
-^FO985,0^GB3,${H},3^FS
-; Texto vertical izquierda (rotado)
-^FO8,20^A0N,14,14^FDManipulacion y almacenaje:^FS
-^FO8,40^A0N,11,11^FDUtilice EPP adecuado.^FS
-^FO8,56^A0N,11,11^FDAlmacene en areas secas, frescas^FS
-^FO8,70^A0N,11,11^FDy ventiladas. Evite calor y sol.^FS
-^FO8,108^A0N,14,14^FDPrimeros auxilios:^FS
-^FO8,128^A0N,11,11^FDEn caso de intoxicacion llame al^FS
-^FO8,142^A0N,11,11^FDCITUC: 02 2635 3800^FS
-^FO8,156^A0N,11,11^FDatencion 24hrs todos los dias.^FS
-; Logo DMP (texto en ZPL - la imagen no se transfiere a ZPL)
-^FO370,18^GB240,60,60^FS
-^FO378,24^FR^A0N,42,42^FD${LOGO_TEXT[(d.logo||'dmp').toLowerCase()]||'DMP'}^FS
+^MMT
+^LH0,0
+
+; ── Borde exterior ──
+^FO2,2^GB${W-4},${H-4},3^FS
+
+; ── Línea separadora izq/ctr (x=200) ──
+^FO200,0^GB3,${H},3^FS
+
+; ── Línea separadora ctr/der (x=630) ──
+^FO630,0^GB3,${H},3^FS
+
+; ══ COLUMNA IZQUIERDA (seguridad) x=0..200 ══
+; Texto en vertical — usando campo rotado 90°
+^FO10,30^A0R,13,13^FDManipulacion y almacenaje:^FS
+^FO28,30^A0R,11,11^FDUtilice siempre EPP adecuado.^FS
+^FO44,30^A0R,11,11^FDAlmacene en areas secas y frescas.^FS
+^FO60,30^A0R,11,11^FDEvite calor intenso y luz solar.^FS
+
+^FO90,30^A0R,13,13^FDPrimeros auxilios:^FS
+^FO108,30^A0R,11,11^FDEn caso de intoxicacion llame al^FS
+^FO124,30^A0R,11,11^FDCITUC: 02 2635 3800^FS
+^FO140,30^A0R,11,11^FDatencion 24hrs todos los dias.^FS
+
+; Distribuidor (pie de columna izq)
+^FO185,30^A0R,10,10^FDDistribuido por Cybernetic SpA, Providencia, Santiago.^FS
+
+; ══ COLUMNA CENTRAL (logo / titulo / contenido) x=200..630 ══
+; Logo box negro centrado
+^FO270,25^GB180,55,55^FS
+^FO278,30^FR^A0N,40,40^FD${logoTxt}^FS
+
 ; Titulo
-${tituloLine}
+^FO205,100^A0N,${tSize},${tSize}^FD${d.titulo}^FS
+
 ; Subtitulo
-^FO370,168^A0N,22,22^FD${d.subtitulo}^FS
-; Divider
-^FO645,205^GB3,90,3^FS
-; Cont neto
-^FO518,308^A0N,18,18^FDCONTENIDO NETO^FS
-${cZPL}
-; Columna derecha
-^FO995,22^A0N,14,14^FDDosis: ${d.dosis}^FS
-^FO995,44^A0N,14,14^FDOrigen: ${d.pais}^FS
-^FO995,66^A0N,14,14^FDVencimiento: ${fv}^FS
-^FO988,560
-^BY2,3,65
-^BEN,65,Y,N
+${d.subtitulo ? `^FO210,170^A0N,22,22^FD${d.subtitulo}^FS` : ''}
+
+; Divider vertical centrado
+^FO410,210^GB3,80,3^FS
+
+; CONTENIDO NETO
+^FO240,${H-160}^A0N,18,18^FDCONTENIDO NETO^FS
+^FO220,${H-135}^A0N,38,36^FD${contLine}^FS
+
+; Footer
+${footerZpl}
+
+; ══ COLUMNA DERECHA (info + barcode) x=630..812 ══
+; Info superior derecha
+${infoZpl}
+
+; Codigo de barras EAN-13
+^FO636,${H-155}
+^BY2,3,70
+^BEN,70,Y,N
 ^FD${d.ean13}^FS
-^FO988,780^A0N,11,11^FDCybernetic SpA, Santiago^FS
+
 ^XZ`;
 }
 
