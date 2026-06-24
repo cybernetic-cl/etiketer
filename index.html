@@ -705,37 +705,44 @@ function renderPreview(){
 }
 
 // ══ ZPL ══
-// Impresora: rollo 10cm ancho, etiqueta 15cm largo
-// ZPL: PW=812 dots (10cm@203dpi), LL=1218 dots (15cm@203dpi)
-// Orientación: ^FO x,y donde x=0 es borde izquierdo del rollo (10cm)
-//              y=0 es inicio de la etiqueta, aumenta hacia los 15cm
-// Layout igual que el HTML:
-//   Columna IZQ  (texto seguridad): y=0..240, x=0..200
-//   Columna CTR  (logo/titulo/cont): y=0..1218, x=200..630
-//   Columna DER  (info+barcode):    y=0..1218, x=630..812
+// Layout HORIZONTAL: etiqueta 15cm × 10cm
+// ^PW1218 (15cm @ 203dpi) = ancho de página
+// ^LL812  (10cm @ 203dpi) = largo/alto de etiqueta
+// Columnas igual que HTML:
+//   IZQ  x=0..230    texto seguridad vertical
+//   CTR  x=230..900  logo / titulo / contenido
+//   DER  x=900..1218 info + barcode
 function buildZPL(d){
-  const W = 812;   // 10cm @ 203dpi
-  const H = 1218;  // 15cm @ 203dpi
+  const W = 1218; // 15cm @ 203dpi — ancho página
+  const H = 812;  // 10cm @ 203dpi — alto etiqueta
+  const L = 230;  // separador izq
+  const R = 900;  // separador der
+
   const _rv = resolveVenc(d);
   const fv = _rv ? (([y,m]) => m+'/'+y.slice(2))(_rv.split('-')) : '';
   const logoTxt = LOGO_TEXT[(d.logo||'dmp').toLowerCase()] || 'DMP';
 
-  // Título — tamaño adaptativo
-  const tSize = d.titulo.length > 16 ? 44 : d.titulo.length > 12 ? 52 : 60;
+  // Título tamaño adaptativo
+  const tSize = d.titulo.length > 18 ? 40 : d.titulo.length > 12 ? 50 : 58;
 
-  // Contenido neto
-  const contLine = d.contenido || '';
-
-  // Campos opcionales derecha
-  const infoZpl = [
-    d.dosis ? `^FO635,${H-210}^A0N,16,16^FDDosis: ${d.dosis}^FS` : '',
-    d.pais  ? `^FO635,${H-190}^A0N,16,16^FDOrigen: ${d.pais}^FS` : '',
-    fv      ? `^FO635,${H-170}^A0N,16,16^FDVenc: ${fv}^FS` : '',
-  ].filter(Boolean).join('\n');
+  // Info columna derecha (solo campos con valor)
+  const infoLines = [
+    d.dosis ? 'Dosis: '+d.dosis       : '',
+    d.pais  ? 'Origen: '+d.pais       : '',
+    fv      ? 'Venc: '+fv             : '',
+  ].filter(Boolean);
+  const infoZpl = infoLines.map((line, i) =>
+    `^FO${R+8},${H-200+(i*22)}^A0N,16,16^FD${line}^FS`
+  ).join('\n');
 
   // Footer
   const footerZpl = d.footer
-    ? `^FO200,${H-18}^A0N,13,13^FD${d.footer.substring(0,70)}^FS`
+    ? `^FO${L+10},${H-16}^A0N,12,12^FD${d.footer.substring(0,80)}^FS`
+    : '';
+
+  // Subtitulo
+  const subZpl = d.subtitulo
+    ? `^FO${L+10},160^A0N,22,22^FD${d.subtitulo}^FS`
     : '';
 
   return `^XA
@@ -743,61 +750,58 @@ function buildZPL(d){
 ^LL${H}
 ^CI28
 ^MMT
-^LH0,0
 
 ; ── Borde exterior ──
 ^FO2,2^GB${W-4},${H-4},3^FS
 
-; ── Línea separadora izq/ctr (x=200) ──
-^FO200,0^GB3,${H},3^FS
+; ── Separador izq (x=${L}) ──
+^FO${L},0^GB3,${H},3^FS
 
-; ── Línea separadora ctr/der (x=630) ──
-^FO630,0^GB3,${H},3^FS
+; ── Separador der (x=${R}) ──
+^FO${R},0^GB3,${H},3^FS
 
-; ══ COLUMNA IZQUIERDA (seguridad) x=0..200 ══
-; Texto en vertical — usando campo rotado 90°
-^FO10,30^A0R,13,13^FDManipulacion y almacenaje:^FS
-^FO28,30^A0R,11,11^FDUtilice siempre EPP adecuado.^FS
-^FO44,30^A0R,11,11^FDAlmacene en areas secas y frescas.^FS
-^FO60,30^A0R,11,11^FDEvite calor intenso y luz solar.^FS
+; ══ COL IZQUIERDA — texto seguridad rotado 90° ══
+; ^A0R = fuente rotada, texto corre de abajo hacia arriba
+^FO12,${H-10}^A0R,13,13^FDManipulacion y almacenaje:^FS
+^FO30,${H-10}^A0R,11,11^FDUtilice siempre EPP adecuado.^FS
+^FO48,${H-10}^A0R,11,11^FDAlmacene en areas secas, frescas y ventiladas.^FS
+^FO66,${H-10}^A0R,11,11^FDEvite calor intenso y luz solar directa.^FS
 
-^FO90,30^A0R,13,13^FDPrimeros auxilios:^FS
-^FO108,30^A0R,11,11^FDEn caso de intoxicacion llame al^FS
-^FO124,30^A0R,11,11^FDCITUC: 02 2635 3800^FS
-^FO140,30^A0R,11,11^FDatencion 24hrs todos los dias.^FS
+^FO100,${H-10}^A0R,13,13^FDPrimeros auxilios:^FS
+^FO118,${H-10}^A0R,11,11^FDEn caso de intoxicacion consulte medico^FS
+^FO136,${H-10}^A0R,11,11^FDy/o llame al CITUC: 02 2635 3800^FS
+^FO154,${H-10}^A0R,11,11^FDAtencion 24hrs todos los dias.^FS
 
-; Distribuidor (pie de columna izq)
-^FO185,30^A0R,10,10^FDDistribuido por Cybernetic SpA, Providencia, Santiago.^FS
+^FO210,${H-10}^A0R,10,10^FDDistribuido por Cybernetic SpA, Providencia, Santiago.^FS
 
-; ══ COLUMNA CENTRAL (logo / titulo / contenido) x=200..630 ══
-; Logo box negro centrado
-^FO270,25^GB180,55,55^FS
-^FO278,30^FR^A0N,40,40^FD${logoTxt}^FS
+; ══ COL CENTRAL — logo / titulo / contenido ══
+; Logo box
+^FO${L+120},18^GB180,56,56^FS
+^FO${L+128},24^FR^A0N,42,42^FD${logoTxt}^FS
 
 ; Titulo
-^FO205,100^A0N,${tSize},${tSize}^FD${d.titulo}^FS
+^FO${L+8},95^A0N,${tSize},${tSize}^FD${d.titulo}^FS
 
 ; Subtitulo
-${d.subtitulo ? `^FO210,170^A0N,22,22^FD${d.subtitulo}^FS` : ''}
+${subZpl}
 
-; Divider vertical centrado
-^FO410,210^GB3,80,3^FS
+; Divider decorativo
+^FO${L+320},${H/2-50}^GB3,100,3^FS
 
-; CONTENIDO NETO
-^FO240,${H-160}^A0N,18,18^FDCONTENIDO NETO^FS
-^FO220,${H-135}^A0N,38,36^FD${contLine}^FS
+; CONTENIDO NETO — parte inferior
+^FO${L+40},${H-130}^A0N,18,18^FDCONTENIDO NETO^FS
+^FO${L+30},${H-108}^A0N,46,44^FD${d.contenido}^FS
 
 ; Footer
 ${footerZpl}
 
-; ══ COLUMNA DERECHA (info + barcode) x=630..812 ══
-; Info superior derecha
+; ══ COL DERECHA — info + barcode ══
 ${infoZpl}
 
-; Codigo de barras EAN-13
-^FO636,${H-155}
-^BY2,3,70
-^BEN,70,Y,N
+; Barcode EAN-13 — esquina inferior derecha
+^FO${R+8},${H-145}
+^BY2,3,68
+^BEN,68,Y,N
 ^FD${d.ean13}^FS
 
 ^XZ`;
