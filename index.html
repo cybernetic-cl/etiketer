@@ -794,8 +794,66 @@ async function guardar(){
       await window.$add(window.$col('etiquetas'), doc);
       count++;
     }
-    toast(count > 1 ? count+' etiquetas guardadas ✓' : 'Etiqueta guardada ✓', 'ok');
+    const msg = count > 1 ? count+' etiquetas guardadas' : '1 etiqueta guardada';
+    const conts = d.contenidos.join(', ');
+    mostrarConfirmacion(msg, d.titulo, conts);
   } catch(e){ toast('Error: '+e.message,'err'); }
+}
+
+function mostrarConfirmacion(msg, titulo, contenidos){
+  // Crear overlay de confirmación
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:2000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+  ov.innerHTML = '';
+
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:14px;padding:32px 28px;max-width:420px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.15);';
+
+  const icon = document.createElement('div');
+  icon.style.cssText = 'font-size:48px;margin-bottom:12px;';
+  icon.textContent = '✅';
+
+  const h = document.createElement('div');
+  h.style.cssText = 'font-family:"Bebas Neue",sans-serif;font-size:22px;letter-spacing:1px;color:#0f1117;margin-bottom:6px;';
+  h.textContent = msg;
+
+  const sub = document.createElement('div');
+  sub.style.cssText = 'font-size:14px;color:#6b7280;margin-bottom:4px;';
+  sub.textContent = titulo;
+
+  const cont = document.createElement('div');
+  cont.style.cssText = 'font-size:13px;color:#4f46e5;font-weight:600;margin-bottom:24px;font-family:"DM Mono",monospace;';
+  cont.textContent = contenidos;
+
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:10px;justify-content:center;';
+
+  const btnBuscar = document.createElement('button');
+  btnBuscar.className = 'btn btn-dark';
+  btnBuscar.style.cssText = 'flex:1;justify-content:center;';
+  btnBuscar.textContent = 'Ver etiquetas';
+  btnBuscar.onclick = () => { document.body.removeChild(ov); showTab('buscar'); };
+
+  const btnNueva = document.createElement('button');
+  btnNueva.className = 'btn btn-outline';
+  btnNueva.style.cssText = 'flex:1;justify-content:center;';
+  btnNueva.textContent = 'Crear otra';
+  btnNueva.onclick = () => { document.body.removeChild(ov); };
+
+  btnRow.appendChild(btnBuscar);
+  btnRow.appendChild(btnNueva);
+
+  box.appendChild(icon);
+  box.appendChild(h);
+  box.appendChild(sub);
+  box.appendChild(cont);
+  box.appendChild(btnRow);
+  ov.appendChild(box);
+
+  // Cerrar al click fuera
+  ov.addEventListener('click', (e) => { if(e.target===ov) document.body.removeChild(ov); });
+
+  document.body.appendChild(ov);
 }
 
 // ══ BUSCAR ══
@@ -1058,6 +1116,7 @@ window.guardar=guardar; window.cargar=cargar; window.filtrar=filtrar;
 window.abrirModal=abrirModal; window.cerrarModal=cerrarModal;
 window.setPrintMode=setPrintMode; window.ejecutarImpresion=ejecutarImpresion;
 window.abrirEdit=abrirEdit; window.cerrarEdit=cerrarEdit; window.guardarEdit=guardarEdit;
+window.mostrarConfirmacion=mostrarConfirmacion;
 window.imprimir=imprimir; window.copiarZPL=copiarZPL; window.copyZPLcard=copyZPLcard;
 
 // ══ INIT ══
