@@ -766,69 +766,55 @@ async function logoToGRF(targetW, targetH){
 }
 
 async function buildZPL(d){
-  const W = 1218, H = 812;
-  const L = 230,  R = 900;
-  const CX = Math.round((L + R) / 2);
+  // Impresora: rollo 10cm ancho x 15cm largo
+  // PW=812 (10cm @ 203dpi), LL=1218 (15cm @ 203dpi)
+  // La etiqueta sale VERTICAL (portrait). Para que el diseño
+  // quede horizontal al leerla, las 3 columnas se convierten en 3 BANDAS horizontales:
+  //   BANDA SUPERIOR  y=0..280     → Col derecha (info + barcode)
+  //   BANDA CENTRAL   y=280..950   → Col central (logo + titulo + contenido)
+  //   BANDA INFERIOR  y=950..1218  → Col izquierda (texto seguridad rotado)
+
+  const W = 812, H = 1218;
+  const SEP1 = 280, SEP2 = 950;
+  const CX = Math.round((SEP1 + SEP2) / 2);
 
   const _rv = resolveVenc(d);
   const fv  = _rv ? (([y,m]) => m+'/'+y.slice(2))(_rv.split('-')) : '';
   const logoTxt = LOGO_TEXT[(d.logo||'dmp').toLowerCase()] || 'DMP';
+  const tSz = d.titulo.length > 18 ? 42 : d.titulo.length > 12 ? 50 : 58;
 
-  // Título — tamaño adaptativo
-  const tSz = d.titulo.length > 18 ? 44 : d.titulo.length > 12 ? 52 : 60;
-
-  // Info derecha
-  const infoItems = [
-    d.dosis ? 'Dosis: '+d.dosis   : '',
-    d.pais  ? 'Origen: '+d.pais   : '',
-    fv      ? 'Venc: '+fv         : '',
-  ].filter(Boolean);
-  const bcH = 70, bcY = H - bcH - 14;
-  const infoStartY = bcY - infoItems.length * 22 - 12;
-  const infoZpl = infoItems.map((line,i) =>
-    `^FO${R+10},${infoStartY + i*22}^A0N,18,18^FD${line}^FS`
-  ).join('\n');
-
-  // Subtítulo
-  const subZpl = d.subtitulo
-    ? `^FO${L+10},175^A0N,22,22^FD${d.subtitulo}^FS` : '';
-
-  // Footer — centrado en col central
-  const footerZpl = d.footer
-    ? `^FO${L+10},${H-20}^A0N,14,14^FD${d.footer.substring(0,85)}^FS` : '';
-
-  // Logo como GRF o texto
+  // Logo GRF si es DMP
   let logoZpl = '';
   if((d.logo||'dmp').toLowerCase() === 'dmp'){
-    // Intentar convertir logo a GRF
-    const grf = await logoToGRF(160, 96);
+    const grf = await logoToGRF(130, 78);
     if(grf){
-      const dataLen  = grf.totalBytes * 2;
-      const totalLen = dataLen;
-      logoZpl = `^FO${CX-80},16^GFA,${totalLen},${totalLen},${grf.bytesPerRow*2},${grf.hex}^FS`;
+      logoZpl = `^FO${W/2-65},${CX-39}^GFA,${grf.totalBytes*2},${grf.totalBytes*2},${grf.bytesPerRow*2},${grf.hex}^FS`;
     } else {
-      // Fallback: texto
-      logoZpl = `^FO${CX-60},16^GB120,52,52^FS\n^FO${CX-52},20^FR^A0N,40,40^FD${logoTxt}^FS`;
+      logoZpl = `^FO${W/2-60},${CX-26}^GB120,52,52^FS\n^FO${W/2-52},${CX-20}^FR^A0N,40,40^FD${logoTxt}^FS`;
     }
   } else {
-    logoZpl = `^FO${CX-60},16^GB120,52,52^FS\n^FO${CX-52},20^FR^A0N,40,40^FD${logoTxt}^FS`;
+    logoZpl = `^FO${W/2-60},${CX-26}^GB120,52,52^FS\n^FO${W/2-52},${CX-20}^FR^A0N,40,40^FD${logoTxt}^FS`;
   }
 
-  // Texto izquierda rotado: ^A0R = rotate 90° clockwise
-  // En ZPL ^A0R escribe de abajo hacia arriba
-  // Posicionamos dos bloques en x=12 y x=80
-  const leftZpl = `
-; Bloque 1 — Manipulacion y almacenaje
-^FO12,${H-10}^A0R,16,16^FDManipulacion y almacenaje:^FS
-^FO32,${H-10}^A0R,13,13^FDUtilice siempre EPP adecuado.^FS
-^FO48,${H-10}^A0R,13,13^FDAlmacene en areas secas, frescas y ventiladas.^FS
-^FO64,${H-10}^A0R,13,13^FDEvite calor intenso y luz solar directa.^FS
-; Bloque 2 — Primeros auxilios
-^FO100,${H-10}^A0R,16,16^FDPrimeros auxilios:^FS
-^FO120,${H-10}^A0R,13,13^FDEn caso de intoxicacion consulte a su medico^FS
-^FO136,${H-10}^A0R,13,13^FDo llame al CITUC: 02 2635 3800^FS
-^FO152,${H-10}^A0R,13,13^FDAtencion 24hrs todos los dias.^FS
-`;
+  // Info columna derecha (banda superior)
+  const infoItems = [
+    d.dosis ? `Dosis: ${d.dosis}`   : '',
+    d.pais  ? `Origen: ${d.pais}`   : '',
+    fv      ? `Venc: ${fv}`         : '',
+  ].filter(Boolean);
+  const bcH = 100;
+  const bcY = SEP1 - bcH - 10;
+  const infoZpl = infoItems.map((line, i) =>
+    `^FO10,${10 + i * 24}^A0N,20,20^FD${line}^FS`
+  ).join('\n');
+
+  // Subtitulo
+  const subZpl = d.subtitulo
+    ? `^FO10,${CX-26+78+tSz+12}^A0N,22,22^FD${d.subtitulo}^FS` : '';
+
+  // Footer
+  const footerZpl = d.footer
+    ? `^FO10,${SEP2-22}^A0N,13,13^FD${d.footer.substring(0,85)}^FS` : '';
 
   return `^XA
 ^PW${W}
@@ -836,33 +822,35 @@ async function buildZPL(d){
 ^CI28
 ^MMT
 
-; Separadores de columnas
-^FO${L},0^GB2,${H},2^FS
-^FO${R},0^GB2,${H},2^FS
+; Separadores horizontales
+^FO0,${SEP1}^GB${W},2,2^FS
+^FO0,${SEP2}^GB${W},2,2^FS
 
-; ══ COL IZQUIERDA ══${leftZpl}
-
-; ══ COL CENTRAL ══
-; Logo
-${logoZpl}
-; Titulo
-^FO${L+10},128^A0N,${tSz},${tSz}^FD${d.titulo}^FS
-${subZpl}
-; Divider decorativo
-^FO${CX},240^GB2,80,2^FS
-; Contenido neto
-^FO${L+40},${H-130}^A0N,18,18^FDCONTENIDO NETO^FS
-^FO${L+30},${H-108}^A0N,52,50^FD${d.contenido}^FS
-; Footer
-${footerZpl}
-
-; ══ COL DERECHA ══
+; ══ BANDA SUPERIOR — info + barcode ══
 ${infoZpl}
-; Barcode EAN-13
-^FO${R+8},${bcY}
+^FO10,${bcY}
 ^BY2,3,${bcH}
 ^BEN,${bcH},Y,N
 ^FD${d.ean13}^FS
+
+; ══ BANDA CENTRAL — logo + titulo + contenido ══
+${logoZpl}
+^FO10,${CX-26+82}^A0N,${tSz},${tSz}^FD${d.titulo}^FS
+${subZpl}
+^FO${W/2},${CX+60}^GB2,60,2^FS
+^FO20,${SEP2-115}^A0N,18,18^FDCONTENIDO NETO^FS
+^FO10,${SEP2-93}^A0N,52,50^FD${d.contenido}^FS
+${footerZpl}
+
+; ══ BANDA INFERIOR — texto seguridad rotado ══
+^FO${W-18},${H-8}^A0R,14,14^FDManipulacion y almacenaje:^FS
+^FO${W-34},${H-8}^A0R,12,12^FDUtilice siempre EPP adecuado.^FS
+^FO${W-48},${H-8}^A0R,12,12^FDAlmacene en areas secas, frescas y ventiladas.^FS
+^FO${W-62},${H-8}^A0R,12,12^FDEvite calor intenso y luz solar directa.^FS
+^FO${W-88},${H-8}^A0R,14,14^FDPrimeros auxilios:^FS
+^FO${W-104},${H-8}^A0R,12,12^FDEn caso de intoxicacion consulte a su medico^FS
+^FO${W-118},${H-8}^A0R,12,12^FDo llame al CITUC: 02 2635 3800^FS
+^FO${W-132},${H-8}^A0R,12,12^FDAtencion 24hrs todos los dias.^FS
 
 ^XZ`;
 }
