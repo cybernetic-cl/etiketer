@@ -7,7 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=Bebas+Neue&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root {
@@ -294,20 +293,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 /* ── Print ── */
 @media print {
   @page { size: 150mm 100mm landscape; margin: 0; }
-  body * { visibility: hidden !important; }
-  #print-area, #print-area * { visibility: visible !important; }
-  #print-area {
-    position: fixed; inset: 0; background: #fff;
-    display: flex; flex-wrap: wrap; align-content: flex-start;
-    gap: 0; padding: 0; align-items: flex-start; justify-content: flex-start;
-  }
-  #print-area .lp {
-    width: 150mm !important; height: 100mm !important;
-    transform: none !important; margin: 0 !important;
-    box-shadow: none !important; border: none !important;
-    page-break-after: always; flex-shrink: 0;
-  }
-  #print-area .lp:last-child { page-break-after: avoid; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }
 </style>
 </head>
@@ -318,10 +304,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   <button class="tab-btn active" id="tab-crear"  onclick="showTab('crear')">+ Crear Etiqueta</button>
   <button class="tab-btn"        id="tab-buscar" onclick="showTab('buscar')">🔍 Buscar / Imprimir</button>
   <div class="spacer"></div>
-  <div class="fb-status" style="margin-right:16px;cursor:pointer;" onclick="qzInit()" title="Click para reconectar QZ Tray">
-    <div class="fb-dot" id="qz-dot"></div>
-    <span id="qz-label">QZ Tray</span>
-  </div>
+
   <div class="fb-status">
     <div class="fb-dot" id="fb-dot"></div>
     <span id="fb-label">Conectando...</span>
@@ -998,14 +981,14 @@ function abrirModal(id){
   modeRow.className = 'print-mode-row';
   const btnHtml = document.createElement('button');
   btnHtml.className='mode-btn active'; btnHtml.id='mode-html';
-  btnHtml.textContent='Exportar PDF'; btnHtml.onclick=()=>setPrintMode('html');
-  const btnXp = document.createElement('button');
-  btnXp.className='mode-btn'; btnXp.id='mode-xp';
-  btnXp.textContent='XPrinter directo'; btnXp.onclick=()=>setPrintMode('xp');
+  btnHtml.textContent='🖨️ Imprimir'; btnHtml.onclick=()=>setPrintMode('html');
+  const btnPdf = document.createElement('button');
+  btnPdf.className='mode-btn'; btnPdf.id='mode-pdf';
+  btnPdf.textContent='📄 Exportar PDF'; btnPdf.onclick=()=>setPrintMode('pdf');
   const btnZpl = document.createElement('button');
   btnZpl.className='mode-btn'; btnZpl.id='mode-zpl';
-  btnZpl.textContent='Copiar ZPL'; btnZpl.onclick=()=>setPrintMode('zpl');
-  modeRow.appendChild(btnHtml); modeRow.appendChild(btnXp); modeRow.appendChild(btnZpl);
+  btnZpl.textContent='📋 Copiar ZPL'; btnZpl.onclick=()=>setPrintMode('zpl');
+  modeRow.appendChild(btnHtml); modeRow.appendChild(btnPdf); modeRow.appendChild(btnZpl);
   body.appendChild(modeRow);
 
   // Action buttons
@@ -1038,7 +1021,7 @@ function abrirModal(id){
 
 function setPrintMode(mode){
   printMode = mode;
-  ['html','xp','zpl'].forEach(m => {
+  ['html','pdf','zpl'].forEach(m => {
     const el = document.getElementById('mode-'+m);
     if(el) el.classList.toggle('active', m===mode);
   });
@@ -1052,140 +1035,89 @@ function ejecutarImpresion(id){
     const sep = '\n';
     const multi = Array(qty).fill(zpl).join(sep);
     navigator.clipboard.writeText(multi).then(()=>toast('ZPL x'+qty+' copiado','ok'));
-  } else if(printMode === 'xp'){
-    imprimirXPrinter(e, qty);
-  } else {
+  } else if(printMode === 'pdf'){
     exportarPDF(e, qty);
+  } else {
+    imprimirBrowser(e, qty);
   }
 }
 
 function cerrarModal(){ document.getElementById('modal-ov').classList.remove('open'); }
 
-// ══ QZ TRAY ══
-let qzConnected = false;
-let qzPrinterName = null;
 
-async function qzInit(){
-  try {
-    if(typeof qz === 'undefined'){
-      console.warn('qz-tray.js no cargó');
-      return;
-    }
+function imprimirBrowser(e, qty){
+  // Construir página de impresión con la etiqueta a escala real
+  // @page fuerza 150x100mm landscape y 0 márgenes
+  const printWin = window.open('', '_blank', 'width=900,height=700');
+  if(!printWin){ toast('Permite ventanas emergentes para imprimir','err'); return; }
 
-    // QZ 2.x — configurar promesas y seguridad
-    qz.api.setPromiseType(fn => new Promise(fn));
+  // Obtener todas las fuentes del documento
+  const fonts = Array.from(document.styleSheets)
+    .flatMap(s => { try { return Array.from(s.cssRules); } catch(_){ return []; } })
+    .filter(r => r instanceof CSSFontFaceRule)
+    .map(r => r.cssText).join('\n');
 
-    // Para uso local/interno sin certificado de pago:
-    // QZ Tray permite conexión sin firmar desde localhost y sitios en su lista de confianza.
-    // El usuario debe agregar el sitio en QZ Tray → Site Manager → Allow unsigned.
-    qz.security.setCertificatePromise((_resolve, _reject) => {
-      _resolve(''); // sin certificado — requiere "Allow unsigned" en QZ Tray
-    });
-    qz.security.setSignaturePromise(_toSign => {
-      return (_resolve, _reject) => _resolve(''); // sin firma
-    });
-
-    // Conectar con reintentos
-    if(qz.websocket.isActive()){
-      qzConnected = true;
-    } else {
-      await qz.websocket.connect({ retries: 3, delay: 1 });
-      qzConnected = true;
-    }
-
-    document.getElementById('qz-dot').className    = 'fb-dot ok';
-    document.getElementById('qz-label').textContent = 'QZ OK';
-
-    // Buscar XPrinter (acepta nombre parcial)
-    try {
-      const found = await qz.printers.find('XPrinter');
-      qzPrinterName = Array.isArray(found) ? found[0] : found;
-    } catch(_){
-      qzPrinterName = await qz.printers.getDefault();
-    }
-    console.log('QZ impresora:', qzPrinterName);
-
-  } catch(err){
-    qzConnected = false;
-    document.getElementById('qz-dot').className    = 'fb-dot err';
-    document.getElementById('qz-label').textContent = 'QZ sin conectar';
-    console.warn('QZ error:', err.message||err);
+  // Construir HTML de la etiqueta repitiendo qty veces
+  let labelsHTML = '';
+  for(let i=0; i<qty; i++){
+    labelsHTML += '<div class="lp page-label">' + labelHTML(e, 'pr'+i) + '</div>';
   }
+
+  // CSS completo heredado del documento principal
+  const allCSS = Array.from(document.styleSheets)
+    .flatMap(s => { try { return Array.from(s.cssRules).map(r=>r.cssText); } catch(_){ return []; } })
+    .join('\n');
+
+  printWin.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Etiqueta</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+${allCSS}
+@page { size: 150mm 100mm landscape; margin: 0; }
+* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+html, body { margin:0; padding:0; background:#fff; }
+.page-label {
+  width: 150mm !important;
+  height: 100mm !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border: 0.3mm solid #ccc !important;
+  page-break-after: always;
+  page-break-inside: avoid;
+  overflow: hidden;
+  font-family: 'DM Sans', Arial, sans-serif !important;
 }
-
-async function imprimirXPrinter(e, qty){
-  if(!qzConnected){
-    // Intentar reconectar
-    await qzInit();
-    if(!qzConnected){
-      toast('QZ Tray no conectado. Instálalo en qz.io','err');
-      // Abrir página de descarga
-      window.open('https://qz.io/download/', '_blank');
-      return;
+.page-label:last-child { page-break-after: avoid; }
+</style>
+</head><body>
+${labelsHTML}
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+<script>
+window.addEventListener('load', function(){
+  // Dibujar barcodes
+  for(let i=0; i<${qty}; i++){
+    const el = document.getElementById('bc-pr'+i);
+    if(el && '${e.ean13}'.length===13){
+      try {
+        JsBarcode(el, '${e.ean13}', {
+          format:'EAN13', width:1.5, height:55,
+          displayValue:true, fontSize:9, margin:3,
+          background:'#ffffff', lineColor:'#000', textMargin:2,
+        });
+        el.style.width='112px'; el.style.display='block';
+      } catch(_){}
     }
   }
-
-  toast('Renderizando etiqueta...','ok');
-
-  // Render canvas 300 DPI
-  // 150mm @ 300dpi = 1772px, 100mm @ 300dpi = 1181px
-  const DPI = 300;
-  const MM_TO_PX = DPI / 25.4;
-  const CW = Math.round(150 * MM_TO_PX); // 1772
-  const CH = Math.round(100 * MM_TO_PX); // 1181
-
-  // Canvas de preview a 96dpi para pasar a dibujarEtiquetaCanvas
-  const PW = 567, PH = 378;
-
-  const cv = document.createElement('canvas');
-  cv.width  = CW;
-  cv.height = CH;
-  const ctx = cv.getContext('2d');
-  // Escalar de 567x378 a 1772x1181
-  ctx.scale(CW/PW, CH/PH);
-
-  await dibujarEtiquetaCanvas(ctx, e, PW, PH);
-
-  // Convertir a PNG base64
-  const imgData = cv.toDataURL('image/png');
-  const base64  = imgData.split(',')[1];
-
-  try {
-    const config = qz.configs.create(qzPrinterName, {
-      size:        { width: 150, height: 100 },
-      units:       'mm',
-      orientation: 'landscape',
-      colorType:   'grayscale',
-      copies:      qty,
-      density:     300,
-      interpolation: 'nearest-neighbor',
-    });
-
-    const data = [{
-      type:   'pixel',
-      format: 'image',
-      flavor: 'base64',
-      data:   base64,
-    }];
-
-    await qz.print(config, data);
-    cerrarModal();
-    toast('Imprimiendo '+qty+' etiqueta'+(qty>1?'s':'')+' en "'+qzPrinterName+'"','ok');
-  } catch(err){
-    // Si falla, mostrar selector de impresora
-    const printers = await qz.printers.find();
-    const lista = Array.isArray(printers) ? printers : [printers];
-    const sel = prompt('Impresora no encontrada. Escribe el nombre exacto:\n\n'+lista.join('\n'), lista[0]||'');
-    if(sel){
-      qzPrinterName = sel;
-      toast('Impresora cambiada a: '+sel+'. Intenta de nuevo.','ok');
-    }
-    console.error('QZ print error:', err);
-  }
+  // Esperar fuentes y luego imprimir
+  document.fonts.ready.then(function(){
+    setTimeout(function(){ window.print(); setTimeout(function(){ window.close(); }, 500); }, 600);
+  });
+});
+<\/script>
+</body></html>`);
+  printWin.document.close();
 }
-
-// Intentar conectar QZ al cargar
-setTimeout(qzInit, 1500);
 
 async function exportarPDF(e, qty){
   toast('Generando PDF...','ok');
@@ -1511,7 +1443,7 @@ window.toggleVencAuto=toggleVencAuto; window.calcVencAuto=calcVencAuto;
 window.guardar=guardar; window.cargar=cargar; window.filtrar=filtrar;
 window.abrirModal=abrirModal; window.cerrarModal=cerrarModal;
 window.setPrintMode=setPrintMode; window.ejecutarImpresion=ejecutarImpresion;
-window.qzInit=qzInit; window.imprimirXPrinter=imprimirXPrinter;
+
 window.abrirEdit=abrirEdit; window.cerrarEdit=cerrarEdit; window.guardarEdit=guardarEdit;
 window.mostrarConfirmacion=mostrarConfirmacion;
 window.eliminarCard=eliminarCard;
