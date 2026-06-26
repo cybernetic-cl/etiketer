@@ -638,7 +638,7 @@ function labelHTML(d, sfx){
       <div class="lp-cont-lbl">CONTENIDO NETO</div>
       <div class="lp-cont-opts">${contHTML}</div>
     </div>
-    ${d.footer ? `<div style="font-size:6.5px;color:#888;margin-top:8px;font-style:italic;text-align:center;line-height:1.4;">${d.footer}</div>` : ''}
+    ${d.footer ? `<div style="font-size:6.5px;color:#777;margin-top:8px;margin-bottom:4px;font-style:italic;text-align:center;line-height:1.4;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${d.footer}</div>` : ''}
   </div>
   <div class="lp-right">
     ${infoLines ? `<div class="lp-info">${infoLines}</div>` : ''}
@@ -1236,11 +1236,18 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
   ctx.font='bold '+f(24)+'px "DM Sans",Arial,sans-serif';
   ctx.fillText(e.contenido||'', cx, H-f(36));
 
-  // Footer
+  // Footer — centrado en col central, con margen suficiente del borde
   if(e.footer){
-    ctx.fillStyle='#999'; ctx.textAlign='center';
-    ctx.font='italic '+f(7)+'px "DM Sans",Arial,sans-serif';
-    ctx.fillText(e.footer.substring(0,100), cx, H-f(6));
+    ctx.fillStyle='#777'; ctx.textAlign='center';
+    const footerSize = f(8);
+    ctx.font='italic '+footerSize+'px "DM Sans",Arial,sans-serif';
+    // Truncar si es muy largo para el ancho disponible
+    const maxW = R - L - f(10);
+    let footerTxt = e.footer;
+    while(footerTxt.length > 10 && ctx.measureText(footerTxt).width > maxW){
+      footerTxt = footerTxt.substring(0, footerTxt.length - 4) + '...';
+    }
+    ctx.fillText(footerTxt, cx, H - f(14));
   }
 
   // ── COL DER ──
