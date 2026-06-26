@@ -708,7 +708,9 @@ function renderPreview(){
   ctx.scale(2, 2); // retina
   dibujarEtiquetaCanvas(ctx, previewD, PW, PH);
 
-  document.getElementById('zpl-out').textContent = d.contenidos.map(cont=>buildZPL({...d,contenido:cont})).join('\n\n; ── siguiente etiqueta ──\n\n');
+  Promise.all(d.contenidos.map(cont=>buildZPL({...d,contenido:cont}))).then(zpls=>{
+    document.getElementById('zpl-out').textContent = zpls.join('\n\n; ── siguiente etiqueta ──\n\n');
+  });
   const badge = document.getElementById('preview-count');
   if(badge) badge.textContent = d.contenidos.length > 1 ? d.contenidos.length+' variantes' : '';
 }
@@ -814,7 +816,7 @@ async function buildZPL(d){
 
   // Footer
   const footerZpl = d.footer
-    ? `^FO10,${SEP2-22}^A0N,13,13^FD${d.footer.substring(0,85)}^FS` : '';
+    ? `^FO10,${SEP2-26}^A0N,18,18^FD${d.footer.substring(0,72)}^FS` : '';
 
   return `^XA
 ^PW${W}
@@ -843,14 +845,14 @@ ${subZpl}
 ${footerZpl}
 
 ; ══ BANDA INFERIOR — texto seguridad rotado ══
-^FO${W-18},${H-8}^A0R,14,14^FDManipulacion y almacenaje:^FS
-^FO${W-34},${H-8}^A0R,12,12^FDUtilice siempre EPP adecuado.^FS
-^FO${W-48},${H-8}^A0R,12,12^FDAlmacene en areas secas, frescas y ventiladas.^FS
-^FO${W-62},${H-8}^A0R,12,12^FDEvite calor intenso y luz solar directa.^FS
-^FO${W-88},${H-8}^A0R,14,14^FDPrimeros auxilios:^FS
-^FO${W-104},${H-8}^A0R,12,12^FDEn caso de intoxicacion consulte a su medico^FS
-^FO${W-118},${H-8}^A0R,12,12^FDo llame al CITUC: 02 2635 3800^FS
-^FO${W-132},${H-8}^A0R,12,12^FDAtencion 24hrs todos los dias.^FS
+^FO${W-20},${H-8}^A0R,20,20^FDManipulacion y almacenaje:^FS
+^FO${W-42},${H-8}^A0R,16,16^FDUtilice siempre EPP adecuado.^FS
+^FO${W-60},${H-8}^A0R,16,16^FDAlmacene en areas secas, frescas y ventiladas.^FS
+^FO${W-78},${H-8}^A0R,16,16^FDEvite calor intenso y luz solar directa.^FS
+^FO${W-112},${H-8}^A0R,20,20^FDPrimeros auxilios:^FS
+^FO${W-134},${H-8}^A0R,16,16^FDEn caso de intoxicacion consulte a su medico^FS
+^FO${W-152},${H-8}^A0R,16,16^FDo llame al CITUC: 02 2635 3800^FS
+^FO${W-170},${H-8}^A0R,16,16^FDAtencion 24hrs todos los dias.^FS
 
 ^XZ`;
 }
@@ -889,9 +891,9 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
   ctx.rotate(-Math.PI / 2);
   ctx.textAlign = 'left';
 
-  const LH  = f(12);
-  const FS  = f(8.5);
-  const FSB = f(9.5);
+  const LH  = f(14);
+  const FS  = f(10);
+  const FSB = f(11.5);
 
   const bloques = [
     {
@@ -991,9 +993,9 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
     ctx.textBaseline = 'bottom'; // ancla texto desde abajo — no se corta
     const maxW = W - COL_L - COL_R - f(16);
     // Empezar con fuente legible y reducir solo si no cabe
-    let fSize = f(9.5);
+    let fSize = f(11);
     ctx.font = fSize + 'px "DM Sans",Arial,sans-serif';
-    while(ctx.measureText(e.footer).width > maxW && fSize > f(6)){
+    while(ctx.measureText(e.footer).width > maxW && fSize > f(7)){
       fSize -= S * 0.3;
       ctx.font = fSize + 'px "DM Sans",Arial,sans-serif';
     }
@@ -1102,7 +1104,7 @@ async function guardarEdit(id){
   };
   // Recalcular ZPL con datos actualizados
   const e = todas.find(x=>x.id===id);
-  if(e){ updates.zpl = buildZPL({...e,...updates}); }
+  if(e){ updates.zpl = await buildZPL({...e,...updates}); }
   try {
     await window.$upd(window.$doc(id), updates);
     toast('Cambios guardados ✓','ok');
