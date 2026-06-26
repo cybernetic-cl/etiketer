@@ -1138,45 +1138,39 @@ async function exportarPDF(e, qty){
 async function dibujarEtiquetaCanvas(ctx, e, W, H){
   await document.fonts.ready;
 
-  // Escala relativa a 567x378 (preview size)
-  const S = W / 567;
-  const f = n => n * S;
+  const S  = W / 567;
+  const f  = n => n * S;
 
   const fv = (() => {
     const rv = resolveVenc(e);
     return rv ? (([y,m]) => m+'/'+y.slice(2))(rv.split('-')) : '';
   })();
 
-  // Columnas (proporcional)
-  const COL_L = f(118); // ancho col izq
-  const COL_R = f(130); // ancho col der
-  const CX = COL_L + (W - COL_L - COL_R) / 2; // centro col central
+  const COL_L = f(118);
+  const COL_R = f(130);
+  const CX    = COL_L + (W - COL_L - COL_R) / 2;
 
-  // ── Fondo blanco total ──
+  // Fondo blanco
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
-  // ── Borde ──
+  // Solo las 2 líneas separadoras internas — sin borde exterior
   ctx.strokeStyle = '#111';
-  ctx.lineWidth = f(1.5);
-  ctx.strokeRect(f(0.5), f(0.5), W - f(1), H - f(1));
-
-  // ── Separadores verticales ──
+  ctx.lineWidth   = f(1.5);
   ctx.beginPath();
-  ctx.moveTo(COL_L, 0);       ctx.lineTo(COL_L, H);
-  ctx.moveTo(W - COL_R, 0);   ctx.lineTo(W - COL_R, H);
+  ctx.moveTo(COL_L, 0);     ctx.lineTo(COL_L, H);
+  ctx.moveTo(W-COL_R, 0);   ctx.lineTo(W-COL_R, H);
   ctx.stroke();
 
-  // ══ COL IZQUIERDA — texto rotado -90° ══
+  // ══ COL IZQUIERDA — texto rotado ══
   ctx.save();
   ctx.translate(COL_L / 2, H / 2);
   ctx.rotate(-Math.PI / 2);
-  // Tras rotar: X va de -H/2 a +H/2 (a lo largo etiqueta), Y va de -COL_L/2 a +COL_L/2
   ctx.textAlign = 'left';
 
-  const LH  = f(12);   // line height
-  const FS  = f(8.5);  // font size cuerpo
-  const FSB = f(9.5);  // font size título
+  const LH  = f(12);
+  const FS  = f(8.5);
+  const FSB = f(9.5);
 
   const bloques = [
     {
@@ -1185,99 +1179,103 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
     },
     {
       titulo: 'Primeros auxilios:',
-      lineas: ['En caso de intoxicacion consulte a', 'su medico o llame al CITUC:', '02 2635 3800 — Atencion 24hrs.']
+      lineas: ['En caso de intoxicacion consulte a','su medico o llame al CITUC:','02 2635 3800 — Atencion 24hrs.']
     },
   ];
 
-  // Cada bloque ocupa ~H/2 en el eje rotado
   bloques.forEach((bloque, bi) => {
     const startX = -H/2 + f(10) + bi * (H/2 - f(10));
     let curY = -COL_L/2 + f(14);
-
-    ctx.font = 'bold ' + FSB + 'px "DM Sans",Arial,sans-serif';
+    ctx.font = 'bold '+FSB+'px "DM Sans",Arial,sans-serif';
     ctx.fillStyle = '#111';
     ctx.fillText(bloque.titulo, startX, curY);
     curY += LH * 1.2;
-
-    ctx.font = FS + 'px "DM Sans",Arial,sans-serif';
+    ctx.font = FS+'px "DM Sans",Arial,sans-serif';
     ctx.fillStyle = '#444';
     bloque.lineas.forEach(l => { ctx.fillText(l, startX, curY); curY += LH; });
   });
 
-  // Distribuidor al pie
-  ctx.font = 'italic ' + f(7.5) + 'px "DM Sans",Arial,sans-serif';
+  ctx.font = 'italic '+f(7.5)+'px "DM Sans",Arial,sans-serif';
   ctx.fillStyle = '#999';
-  ctx.fillText('Cybernetic SpA, Providencia, Santiago.', -H/2 + f(10), COL_L/2 - f(6));
-
+  ctx.fillText('Cybernetic SpA, Providencia, Santiago.', -H/2+f(10), COL_L/2-f(6));
   ctx.restore();
 
-  // ══ COL CENTRAL ══
+  // ══ COL CENTRAL — logo + titulo centrados verticalmente en mitad superior ══
+  const logoW = f(90), logoH = f(52);
+  // Zona superior: desde top hasta el divider (H*0.55)
+  // Centrar logo+titulo+subtitulo en esa zona
+  const zoneTop = f(10);
+  const zoneMid = H * 0.52;
+  const blockH  = logoH + f(34) + (e.subtitulo ? f(18) : 0);
+  const blockY  = zoneTop + (zoneMid - zoneTop - blockH) / 2;
 
   // Logo
   const logoKey = (e.logo||'dmp').toLowerCase();
   const logoSrc = LOGOS[logoKey];
-  const logoW = f(90), logoH = f(54), logoY = f(14);
+  const logoY   = Math.max(f(10), blockY);
   if(logoSrc){
     await new Promise(res => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.onload = () => { ctx.drawImage(img, CX - logoW/2, logoY, logoW, logoH); res(); };
+      img.onload = () => { ctx.drawImage(img, CX-logoW/2, logoY, logoW, logoH); res(); };
       img.onerror = res;
       img.src = logoSrc;
     });
   } else {
     ctx.fillStyle = '#111';
-    ctx.fillRect(CX - f(55), logoY, f(110), f(44));
+    ctx.fillRect(CX-f(55), logoY, f(110), f(44));
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
-    ctx.font = 'bold ' + f(30) + 'px "Bebas Neue",Arial,sans-serif';
-    ctx.fillText(LOGO_TEXT[logoKey]||'DMP', CX, logoY + f(34));
+    ctx.font = 'bold '+f(30)+'px "Bebas Neue",Arial,sans-serif';
+    ctx.fillText(LOGO_TEXT[logoKey]||'DMP', CX, logoY+f(34));
   }
 
-  // Título — centrado
+  // Título centrado bajo el logo
   const tSz = e.titulo.length > 18 ? f(22) : e.titulo.length > 12 ? f(26) : f(30);
+  const titY = logoY + logoH + f(28);
   ctx.fillStyle = '#111';
   ctx.textAlign = 'center';
-  ctx.font = 'bold ' + tSz + 'px "Bebas Neue",Arial,sans-serif';
-  ctx.fillText((e.titulo||'').toUpperCase(), CX, logoY + logoH + f(32));
+  ctx.font = 'bold '+tSz+'px "Bebas Neue",Arial,sans-serif';
+  ctx.fillText((e.titulo||'').toUpperCase(), CX, titY);
 
   // Subtítulo
+  const subY = titY + f(18);
   if(e.subtitulo){
     ctx.fillStyle = '#555';
-    ctx.font = 'italic ' + f(11) + 'px "DM Sans",Arial,sans-serif';
-    ctx.fillText(e.subtitulo, CX, logoY + logoH + f(50));
+    ctx.font = 'italic '+f(11)+'px "DM Sans",Arial,sans-serif';
+    ctx.fillText(e.subtitulo, CX, subY);
   }
 
   // Divider
   ctx.strokeStyle = '#111';
-  ctx.lineWidth = f(1);
-  const divY = H / 2 - f(25);
+  ctx.lineWidth   = f(1);
+  const divTopY = e.subtitulo ? subY + f(14) : titY + f(14);
+  const divBotY = divTopY + f(40);
   ctx.beginPath();
-  ctx.moveTo(CX, divY); ctx.lineTo(CX, divY + f(50));
+  ctx.moveTo(CX, divTopY); ctx.lineTo(CX, divBotY);
   ctx.stroke();
 
-  // Contenido neto
+  // Contenido neto — anclado a la parte inferior
   ctx.fillStyle = '#666';
   ctx.textAlign = 'center';
-  ctx.font = '600 ' + f(9) + 'px "DM Sans",Arial,sans-serif';
-  ctx.fillText('CONTENIDO NETO', CX, H - f(58));
+  ctx.font = '600 '+f(9)+'px "DM Sans",Arial,sans-serif';
+  ctx.fillText('CONTENIDO NETO', CX, H-f(52));
 
   ctx.fillStyle = '#111';
-  ctx.font = 'bold ' + f(26) + 'px "DM Sans",Arial,sans-serif';
-  ctx.fillText(e.contenido||'', CX, H - f(30));
+  ctx.font = 'bold '+f(26)+'px "DM Sans",Arial,sans-serif';
+  ctx.fillText(e.contenido||'', CX, H-f(26));
 
-  // Footer — tamaño legible, bien posicionado
+  // Footer — texto normal, legible, justo al borde inferior interior
   if(e.footer){
-    ctx.fillStyle = '#777';
+    ctx.fillStyle = '#555';
     ctx.textAlign = 'center';
-    const fSize = f(9);
-    ctx.font = 'italic ' + fSize + 'px "DM Sans",Arial,sans-serif';
-    const maxW = W - COL_L - COL_R - f(20);
+    ctx.font = f(9)+'px "DM Sans",Arial,sans-serif';
+    const maxW = W - COL_L - COL_R - f(16);
     let ftxt = e.footer;
     while(ftxt.length > 10 && ctx.measureText(ftxt).width > maxW){
-      ftxt = ftxt.slice(0, -4) + '...';
+      ftxt = ftxt.slice(0,-4)+'...';
     }
-    ctx.fillText(ftxt, CX, H - f(10));
+    ctx.fillText(ftxt, CX, H - f(8));
   }
 
   // ══ COL DERECHA ══
@@ -1286,40 +1284,39 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
   ctx.textAlign = 'left';
 
   const infoItems = [
-    e.dosis ? ['Dosis: ', e.dosis]   : null,
-    e.pais  ? ['Origen: ', e.pais]   : null,
-    fv      ? ['Venc: ', fv]         : null,
+    e.dosis ? ['Dosis: ',  e.dosis] : null,
+    e.pais  ? ['Origen: ', e.pais]  : null,
+    fv      ? ['Venc: ',   fv]      : null,
   ].filter(Boolean);
 
   const bcH   = f(60);
-  const bcY   = H - bcH - f(12);
+  const bcY   = H - bcH - f(10);
   const iFS   = f(9.5);
-  const iStartY = bcY - infoItems.length * f(18) - f(8);
+  const iStartY = bcY - infoItems.length * f(18) - f(10);
 
   infoItems.forEach(([lbl, val], i) => {
     const y = iStartY + i * f(18);
     ctx.fillStyle = '#111';
-    ctx.font = 'bold ' + iFS + 'px "DM Sans",Arial,sans-serif';
+    ctx.font = 'bold '+iFS+'px "DM Sans",Arial,sans-serif';
     ctx.fillText(lbl, RX, y);
     ctx.fillStyle = '#333';
-    ctx.font = iFS + 'px "DM Sans",Arial,sans-serif';
+    ctx.font = iFS+'px "DM Sans",Arial,sans-serif';
     ctx.fillText(val, RX + ctx.measureText(lbl).width, y);
   });
   ctx.restore();
 
-  // Barcode EAN-13
-  if(e.ean13 && e.ean13.length === 13 && /^[0-9]+$/.test(e.ean13)){
+  // Barcode
+  if(e.ean13 && e.ean13.length===13 && /^[0-9]+$/.test(e.ean13)){
     const bcCv  = document.createElement('canvas');
     const bcW   = COL_R - f(16);
-    const bcBars = Math.max(1, Math.round(bcW / 95));
     try {
       JsBarcode(bcCv, e.ean13, {
-        format: 'EAN13', width: bcBars, height: bcH,
-        displayValue: true, fontSize: f(9), margin: f(3),
-        background: '#ffffff', lineColor: '#000',
+        format:'EAN13', width:Math.max(1,Math.round(bcW/95)),
+        height:bcH, displayValue:true, fontSize:f(9),
+        margin:f(3), background:'#ffffff', lineColor:'#000',
       });
-      ctx.drawImage(bcCv, W - COL_R + f(4), bcY, Math.min(bcW, bcCv.width), bcH);
-    } catch(err){ console.warn('BC', err); }
+      ctx.drawImage(bcCv, W-COL_R+f(4), bcY, Math.min(bcW, bcCv.width), bcH);
+    } catch(err){ console.warn('BC',err); }
   }
 }
 
