@@ -133,30 +133,36 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   overflow: hidden;
 }
 .lp-left-inner {
+  /* Rotar todo el bloque junto: ancho del contenedor = alto de la etiqueta */
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
+  /* Centrado en la columna izq: translateX(-50%) mueve al centro horizontal */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  transform-origin: center center;
+  /* Ancho = alto de la etiqueta (360px), alto = ancho de la columna (118px) */
+  width: 360px;
+  height: 118px;
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-around;
-  padding: 4px 2px;
-  gap: 2px;
+  padding: 6px 8px;
+  gap: 10px;
 }
 .lp-block {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
-  /* Rotar cada bloque individualmente — html2canvas compatible */
-  transform: rotate(-90deg);
-  transform-origin: center center;
-  white-space: nowrap;
+  gap: 1px;
+  flex: 1;
 }
 .lp-btitle {
   font-size: 6.5px; font-weight: 700; color: #111;
   text-transform: uppercase; letter-spacing: .5px;
   white-space: nowrap;
   display: block;
+  margin-bottom: 2px;
 }
 .lp-btext {
   font-size: 6px; color: #333; line-height: 1.5;
@@ -1211,171 +1217,144 @@ async function exportarPDF(e, qty){
 }
 
 async function dibujarEtiquetaCanvas(ctx, e, W, H){
-  // Esperar fuentes DM Sans y Bebas Neue
   await document.fonts.ready;
 
-  const fv   = (() => { const rv = resolveVenc(e); return rv ? (([y,m])=>m+'/'+y.slice(2))(rv.split('-')) : ''; })();
-  const logo = LOGO_TEXT[(e.logo||'dmp').toLowerCase()] || 'DMP';
+  const S = W / 567; // factor escala
+  const f = n => Math.round(n * S);
 
-  // Columnas
-  const L = 118; // sep izq
-  const R = W - 130; // sep der
+  const fv = (() => {
+    const rv = resolveVenc(e);
+    return rv ? (([y,m]) => m+'/'+y.slice(2))(rv.split('-')) : '';
+  })();
 
-  // ── Fondo blanco ──
+  const L = f(118), R = f(437), cx = Math.round((f(118)+f(437))/2);
+
+  // Fondo blanco
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
-  // ── Borde ──
+  // Borde
   ctx.strokeStyle = '#111';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = Math.max(1, f(2));
   ctx.strokeRect(1, 1, W-2, H-2);
 
-  // ── Líneas separadoras ──
+  // Separadores verticales
+  ctx.lineWidth = Math.max(1, f(1.5));
   ctx.beginPath();
-  ctx.moveTo(L, 0); ctx.lineTo(L, H);
-  ctx.moveTo(R, 0); ctx.lineTo(R, H);
+  ctx.moveTo(L,0); ctx.lineTo(L,H);
+  ctx.moveTo(R,0); ctx.lineTo(R,H);
   ctx.stroke();
 
-  // ══ COLUMNA IZQUIERDA — texto rotado -90° ══
+  // ── COL IZQ rotada ──
   ctx.save();
   ctx.translate(L/2, H/2);
   ctx.rotate(-Math.PI/2);
-
-  const bloques = [
-    { titulo: 'Manipulacion y almacenaje:', lineas: [
-        'Utilice siempre EPP adecuado.',
-        'Almacene en areas secas, frescas',
-        'y ventiladas. Evite calor y sol.',
-    ]},
-    { titulo: 'Primeros auxilios:', lineas: [
-        'En caso de intoxicacion llame al',
-        'CITUC: 02 2635 3800',
-        'Atencion 24hrs todos los dias.',
-    ]},
-    { titulo: 'Distribuido por Cybernetic SpA, Providencia, Santiago.', lineas:[] },
+  const sf = f(9), sfS = f(7);
+  const segs = [
+    [true,  'Manipulacion y almacenaje:'],
+    [false, 'Utilice siempre EPP adecuado.'],
+    [false, 'Almacene en areas secas y ventiladas.'],
+    [false, 'Evite calor y luz solar.'],
+    [true,  '  Primeros auxilios:'],
+    [false, 'CITUC: 02 2635 3800'],
+    [false, 'Atencion 24hrs todos los dias.'],
+    [false, '  Cybernetic SpA, Providencia, Santiago.'],
   ];
-
-  // Dibuja centrado en el eje rotado (altura original = L, ancho = H)
-  const totalH = H; // ancho disponible en el eje rotado
-  const colH   = L; // alto disponible
-  let x = -totalH/2 + 10;
-  bloques.forEach(b => {
-    ctx.fillStyle = '#111';
-    ctx.font = 'bold 7px "DM Sans", Arial, sans-serif';
-    ctx.fillText(b.titulo, x, -colH/2 + 10);
-    x += ctx.measureText(b.titulo).width + 8;
-    ctx.fillStyle = '#333';
-    ctx.font = '6px "DM Sans", Arial, sans-serif';
-    b.lineas.forEach(l => {
-      ctx.fillText(l, x, -colH/2 + 10);
-      x += ctx.measureText(l).width + 4;
-    });
-    x += 10;
+  let tx = -(H/2) + f(8);
+  segs.forEach(([bold, text]) => {
+    ctx.font = (bold?'bold ':'')+( bold?sf:sfS)+'px "DM Sans",Arial,sans-serif';
+    ctx.fillStyle = bold ? '#111' : '#444';
+    ctx.fillText(text, tx, -(L/2)+f(14));
+    tx += ctx.measureText(text).width + f(bold?8:4);
   });
-
   ctx.restore();
 
-  // ══ COLUMNA CENTRAL ══
-  const cx = (L + R) / 2;
-
-  // Logo imagen o texto
+  // ── COL CENTRAL ──
   const logoKey = (e.logo||'dmp').toLowerCase();
   const logoSrc = LOGOS[logoKey];
   if(logoSrc){
     await new Promise(res => {
       const img = new Image();
-      img.onload = () => {
-        const lw = 80, lh = 45;
-        ctx.drawImage(img, cx - lw/2, 14, lw, lh);
-        res();
-      };
+      img.crossOrigin='anonymous';
+      img.onload = () => { ctx.drawImage(img, cx-f(42), f(12), f(84), f(50)); res(); };
       img.onerror = res;
       img.src = logoSrc;
     });
   } else {
-    ctx.fillStyle = '#111';
-    ctx.fillRect(cx-50, 14, 100, 38);
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 26px "Bebas Neue", Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(logo, cx, 42);
+    ctx.fillStyle='#111';
+    ctx.fillRect(cx-f(55),f(12),f(110),f(44));
+    ctx.fillStyle='#fff';
+    ctx.font='bold '+f(30)+'px "Bebas Neue",Arial,sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText(LOGO_TEXT[logoKey]||'DMP', cx, f(46));
   }
 
   // Título
-  ctx.fillStyle = '#111';
-  ctx.textAlign = 'center';
-  const tSize = e.titulo.length > 18 ? 20 : e.titulo.length > 12 ? 24 : 28;
-  ctx.font = 'bold '+tSize+'px "Bebas Neue", Arial, sans-serif';
-  ctx.fillText((e.titulo||'').toUpperCase(), cx, 80);
+  const tSz = e.titulo.length>18?f(22):e.titulo.length>12?f(26):f(30);
+  ctx.fillStyle='#111'; ctx.textAlign='center';
+  ctx.font='bold '+tSz+'px "Bebas Neue",Arial,sans-serif';
+  ctx.fillText((e.titulo||'').toUpperCase(), cx, f(82));
 
   // Subtítulo
   if(e.subtitulo){
-    ctx.fillStyle = '#555';
-    ctx.font = 'italic 10px "DM Sans", Arial, sans-serif';
-    ctx.fillText(e.subtitulo, cx, 96);
+    ctx.fillStyle='#555';
+    ctx.font='italic '+f(11)+'px "DM Sans",Arial,sans-serif';
+    ctx.fillText(e.subtitulo, cx, f(98));
   }
 
   // Divider
-  ctx.strokeStyle = '#111'; ctx.lineWidth = 1;
+  ctx.strokeStyle='#111'; ctx.lineWidth=Math.max(1,f(1));
   ctx.beginPath();
-  ctx.moveTo(cx, H/2 - 30); ctx.lineTo(cx, H/2 + 10);
+  ctx.moveTo(cx, H/2-f(30)); ctx.lineTo(cx, H/2+f(10));
   ctx.stroke();
 
   // Contenido neto
-  ctx.fillStyle = '#555';
-  ctx.font = '600 7px "DM Sans", Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('CONTENIDO NETO', cx, H - 60);
-
-  ctx.fillStyle = '#111';
-  ctx.font = 'bold 22px "DM Sans", Arial, sans-serif';
-  ctx.fillText(e.contenido || '', cx, H - 38);
+  ctx.fillStyle='#666'; ctx.textAlign='center';
+  ctx.font='600 '+f(9)+'px "DM Sans",Arial,sans-serif';
+  ctx.fillText('CONTENIDO NETO', cx, H-f(62));
+  ctx.fillStyle='#111';
+  ctx.font='bold '+f(24)+'px "DM Sans",Arial,sans-serif';
+  ctx.fillText(e.contenido||'', cx, H-f(36));
 
   // Footer
   if(e.footer){
-    ctx.fillStyle = '#888';
-    ctx.font = 'italic 5.5px "DM Sans", Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(e.footer.substring(0,90), cx, H - 6);
+    ctx.fillStyle='#999'; ctx.textAlign='center';
+    ctx.font='italic '+f(7)+'px "DM Sans",Arial,sans-serif';
+    ctx.fillText(e.footer.substring(0,100), cx, H-f(6));
   }
 
-  // ══ COLUMNA DERECHA ══
-  const rx = R + 8;
-
-  // Info (dosis, origen, venc)
-  ctx.textAlign = 'left';
-  const infoLines = [
-    e.dosis ? 'Dosis: '+e.dosis   : '',
-    e.pais  ? 'Origen: '+e.pais   : '',
-    fv      ? 'Venc: '+fv         : '',
+  // ── COL DER ──
+  const rx = R+f(8);
+  ctx.textAlign='left';
+  const info = [
+    e.dosis?['Dosis: ',e.dosis]:null,
+    e.pais?['Origen: ',e.pais]:null,
+    fv?['Venc: ',fv]:null,
   ].filter(Boolean);
 
-  infoLines.forEach((line, i) => {
-    const parts = line.split(': ');
-    let xOff = rx;
-    ctx.fillStyle = '#111';
-    ctx.font = 'bold 7px "DM Sans", Arial, sans-serif';
-    ctx.fillText(parts[0]+': ', xOff, H - 130 + i*14);
-    xOff += ctx.measureText(parts[0]+': ').width;
-    ctx.fillStyle = '#333';
-    ctx.font = '7px "DM Sans", Arial, sans-serif';
-    ctx.fillText(parts.slice(1).join(': '), xOff, H - 130 + i*14);
+  info.forEach(([lbl,val],i)=>{
+    const y = H-f(130)+i*f(17);
+    ctx.fillStyle='#111';
+    ctx.font='bold '+f(9)+'px "DM Sans",Arial,sans-serif';
+    ctx.fillText(lbl, rx, y);
+    ctx.fillStyle='#333';
+    ctx.font=f(9)+'px "DM Sans",Arial,sans-serif';
+    ctx.fillText(val, rx+ctx.measureText(lbl).width, y);
   });
 
-  // Barcode EAN-13
-  if(e.ean13 && e.ean13.length === 13){
-    const bcCanvas = document.createElement('canvas');
+  // Barcode
+  if(e.ean13 && e.ean13.length===13 && /^[0-9]+$/.test(e.ean13)){
+    const bcCv = document.createElement('canvas');
+    const bcH  = f(55);
+    const bcW  = W-R-f(12);
     try {
-      JsBarcode(bcCanvas, e.ean13, {
-        format:'EAN13', width:1.4, height:50,
-        displayValue:true, fontSize:8, margin:3,
-        background:'#ffffff', lineColor:'#000',
+      JsBarcode(bcCv, e.ean13, {
+        format:'EAN13', width:Math.max(1,Math.round(bcW/95)),
+        height:bcH, displayValue:true, fontSize:f(9),
+        margin:f(3), background:'#ffffff', lineColor:'#000',
       });
-      const bcW = W - R - 8;
-      const bcH = 60;
-      const bcY = H - bcH - 6;
-      ctx.drawImage(bcCanvas, R+4, bcY, bcW, bcH);
-    } catch(_){}
+      ctx.drawImage(bcCv, R+f(4), H-bcH-f(10), Math.min(bcW,bcCv.width), bcH);
+    } catch(err){ console.warn('BC',err); }
   }
 }
 
