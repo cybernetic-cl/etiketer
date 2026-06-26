@@ -1219,12 +1219,12 @@ async function imprimirBrowser(e, qty){
   printWin.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Etiqueta</title>
 <style>
 @page{size:150mm 100mm landscape;margin:0;padding:0;}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
-html,body{margin:0;padding:0;width:150mm;height:100mm;overflow:hidden;background:#fff;}
-.pg{width:150mm;height:100mm;overflow:hidden;position:relative;page-break-after:always;page-break-inside:avoid;display:block;}
+*,*::before,*::after{box-sizing:border-box;margin:0 !important;padding:0 !important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+html,body{margin:0!important;padding:0!important;width:150mm;height:100mm;overflow:hidden;background:#fff;}
+.pg{width:150mm;height:100mm;overflow:hidden;position:relative;page-break-after:always;page-break-inside:avoid;display:block;margin:0!important;padding:0!important;}
 .pg:last-child{page-break-after:avoid;}
-.lbl-img{position:absolute;top:0;left:0;width:150mm;height:100mm;display:block;margin:0;padding:0;}
-@media screen{html,body{width:auto;height:auto;overflow:auto;}body{background:#555;padding:20px;display:flex;flex-direction:column;gap:20px;align-items:center;}.pg{box-shadow:0 2px 20px rgba(0,0,0,.4);}}
+.lbl-img{position:absolute;top:0;left:0;width:150mm!important;height:100mm!important;display:block;margin:0!important;padding:0!important;object-fit:fill;}
+@media screen{html,body{width:auto!important;height:auto!important;overflow:auto;}body{background:#555;padding:20px!important;display:flex;flex-direction:column;gap:20px;align-items:center;}.pg{box-shadow:0 2px 20px rgba(0,0,0,.4);}}
 </style></head><body>${imgsHTML}
 <script>
 let loaded=0;
