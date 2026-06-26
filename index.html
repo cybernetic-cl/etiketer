@@ -828,8 +828,7 @@ async function buildZPL(d){
 ^FO120,${H-10}^A0R,13,13^FDEn caso de intoxicacion consulte a su medico^FS
 ^FO136,${H-10}^A0R,13,13^FDo llame al CITUC: 02 2635 3800^FS
 ^FO152,${H-10}^A0R,13,13^FDAtencion 24hrs todos los dias.^FS
-; Distribuidor
-^FO200,${H-10}^A0R,11,11^FDCybernetic SpA, Providencia, Santiago.^FS`;
+`;
 
   return `^XA
 ^PW${W}
@@ -929,9 +928,6 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
     bloque.lineas.forEach(l => { ctx.fillText(l, startX, curY); curY += LH; });
   });
 
-  ctx.font = 'italic '+f(7.5)+'px "DM Sans",Arial,sans-serif';
-  ctx.fillStyle = '#999';
-  ctx.fillText('Cybernetic SpA, Providencia, Santiago.', -H/2+f(10), COL_L/2-f(6));
   ctx.restore();
 
   // ══ COL CENTRAL — logo + titulo centrados verticalmente en mitad superior ══
