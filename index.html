@@ -395,8 +395,9 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
         <span id="preview-count" style="font-size:11px;font-weight:600;color:var(--indigo);background:#ede9fe;padding:2px 8px;border-radius:12px;"></span>
       </div>
       <div style="padding:0;">
-        <div class="pv-outer">
-          <div id="preview-main" class="lp"></div>
+        <div class="pv-outer" style="padding:16px;">
+          <canvas id="preview-canvas" style="max-width:100%;border-radius:2px;box-shadow:0 3px 16px rgba(0,0,0,.22);"></canvas>
+          <div id="preview-main" class="lp" style="display:none;"></div>
         </div>
       </div>
     </div>
@@ -693,13 +694,21 @@ function renderPreview(){
   document.getElementById('f-ean').value = curEAN;
   document.getElementById('ean-hint').textContent = curEAN;
   const d = datos();
-  // Preview shows first selected contenido
   const previewD = {...d, contenido: d.contenidos[0]||'—'};
-  const el = document.getElementById('preview-main');
-  el.innerHTML = labelHTML(previewD,'prev');
-  setTimeout(()=>drawBC(previewD.ean13,'bc-prev'),80);
+
+  // Dibujar en canvas (igual que la impresión)
+  const cv = document.getElementById('preview-canvas');
+  // Preview size: 540x360 (misma proporción 15x10)
+  const PW = 540, PH = 360;
+  cv.width  = PW * 2; // retina
+  cv.height = PH * 2;
+  cv.style.width  = PW + 'px';
+  cv.style.height = PH + 'px';
+  const ctx = cv.getContext('2d');
+  ctx.scale(2, 2); // retina
+  dibujarEtiquetaCanvas(ctx, previewD, PW, PH);
+
   document.getElementById('zpl-out').textContent = d.contenidos.map(cont=>buildZPL({...d,contenido:cont})).join('\n\n; ── siguiente etiqueta ──\n\n');
-  // Show badge count
   const badge = document.getElementById('preview-count');
   if(badge) badge.textContent = d.contenidos.length > 1 ? d.contenidos.length+' variantes' : '';
 }
@@ -926,7 +935,7 @@ function renderLista(lista){
   document.getElementById('lista').innerHTML=
     `<div class="cards-grid">${lista.map(e=>`
       <div class="ecard">
-        <div class="ecard-thumb"><div class="lp">${labelHTML(e,'c'+e.id)}</div></div>
+        <div class="ecard-thumb"><canvas id="cv-${e.id}" style="width:280px;height:187px;display:block;"></canvas></div>
         <div class="ecard-body">
           <div class="ecard-titulo">${e.titulo||'—'}</div>
           <div class="ecard-sub">${e.subtitulo||''} · ${e.contenido||''}</div>
@@ -943,7 +952,18 @@ function renderLista(lista){
           </div>
         </div>
       </div>`).join('')}</div>`;
-  setTimeout(()=>lista.forEach(e=>drawBC(e.ean13,'bc-c'+e.id)),120);
+  // Draw canvas previews on cards
+  setTimeout(()=>{
+    lista.forEach(e=>{
+      const cv = document.getElementById('cv-'+e.id);
+      if(!cv) return;
+      cv.width  = 560; cv.height = 373;
+      cv.style.width='280px'; cv.style.height='187px';
+      const ctx = cv.getContext('2d');
+      ctx.scale(2,2);
+      dibujarEtiquetaCanvas(ctx, e, 280, 187);
+    });
+  }, 150);
 }
 
 // ══ MODAL VER/IMPRIMIR ══
@@ -958,14 +978,21 @@ function abrirModal(id){
   const body = document.getElementById('modal-body');
   body.innerHTML = '';
 
-  // Preview
+  // Preview usando canvas (igual que impresión)
   const prev = document.createElement('div');
   prev.style.cssText = 'background:#c8ccd4;border-radius:8px;padding:16px;display:flex;justify-content:center;overflow:hidden;margin-bottom:16px;';
-  const lpDiv = document.createElement('div');
-  lpDiv.className = 'lp';
-  lpDiv.innerHTML = labelHTML(e, 'm'+id);
-  prev.appendChild(lpDiv);
+  const prevCv = document.createElement('canvas');
+  const MPW = 500, MPH = Math.round(500*10/15);
+  prevCv.width = MPW*2; prevCv.height = MPH*2;
+  prevCv.style.cssText = 'width:'+MPW+'px;height:'+MPH+'px;border-radius:2px;box-shadow:0 2px 10px rgba(0,0,0,.2);max-width:100%;';
+  prev.appendChild(prevCv);
   body.appendChild(prev);
+  // Dibujar async
+  (async()=>{
+    const mctx = prevCv.getContext('2d');
+    mctx.scale(2,2);
+    await dibujarEtiquetaCanvas(mctx, e, MPW, MPH);
+  })();
 
   // Qty row
   const qtyRow = document.createElement('div');
@@ -1265,17 +1292,18 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
   ctx.font = 'bold '+f(26)+'px "DM Sans",Arial,sans-serif';
   ctx.fillText(e.contenido||'', CX, H-f(26));
 
-  // Footer — texto normal, legible, justo al borde inferior interior
+  // Footer — auto-reduce font size to fit full text
   if(e.footer){
     ctx.fillStyle = '#555';
     ctx.textAlign = 'center';
-    ctx.font = f(9)+'px "DM Sans",Arial,sans-serif';
-    const maxW = W - COL_L - COL_R - f(16);
-    let ftxt = e.footer;
-    while(ftxt.length > 10 && ctx.measureText(ftxt).width > maxW){
-      ftxt = ftxt.slice(0,-4)+'...';
+    const maxW = W - COL_L - COL_R - f(12);
+    let fSize = f(9);
+    ctx.font = fSize+'px "DM Sans",Arial,sans-serif';
+    while(ctx.measureText(e.footer).width > maxW && fSize > f(5)){
+      fSize -= S * 0.5;
+      ctx.font = fSize+'px "DM Sans",Arial,sans-serif';
     }
-    ctx.fillText(ftxt, CX, H - f(8));
+    ctx.fillText(e.footer, CX, H - f(7));
   }
 
   // ══ COL DERECHA ══
