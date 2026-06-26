@@ -714,45 +714,122 @@ function renderPreview(){
 }
 
 // ══ ZPL ══
-// Layout HORIZONTAL: etiqueta 15cm × 10cm
-// ^PW1218 (15cm @ 203dpi) = ancho de página
-// ^LL812  (10cm @ 203dpi) = largo/alto de etiqueta
-// Columnas igual que HTML:
-//   IZQ  x=0..230    texto seguridad vertical
-//   CTR  x=230..900  logo / titulo / contenido
-//   DER  x=900..1218 info + barcode
-function buildZPL(d){
-  const W = 1218; // 15cm @ 203dpi — ancho página
-  const H = 812;  // 10cm @ 203dpi — alto etiqueta
-  const L = 230;  // separador izq
-  const R = 900;  // separador der
+// 15cm × 10cm landscape @ 203 DPI = 1218 × 812 dots
+// PW=1218, LL=812
+// Col IZQ x=0..230, Col CTR x=230..900, Col DER x=900..1218
+
+// Convierte el logo PNG a datos GRF para ^GF
+async function logoToGRF(targetW, targetH){
+  const logoKey = 'dmp';
+  const src = LOGOS[logoKey];
+  if(!src) return null;
+
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      // Dibujar en canvas temporal a blanco/negro
+      const cv = document.createElement('canvas');
+      cv.width = targetW; cv.height = targetH;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,targetW,targetH);
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+
+      const px = ctx.getImageData(0,0,targetW,targetH).data;
+      // Convertir a bits: negro=1, blanco=0
+      // Cada fila: ceil(targetW/8) bytes → 2 hex chars cada byte
+      const bytesPerRow = Math.ceil(targetW / 8);
+      let hex = '';
+      for(let y=0; y<targetH; y++){
+        let rowHex = '';
+        for(let bx=0; bx<bytesPerRow; bx++){
+          let byte = 0;
+          for(let bit=0; bit<8; bit++){
+            const px_x = bx*8 + bit;
+            if(px_x < targetW){
+              const idx = (y*targetW + px_x)*4;
+              // Luminancia: si oscuro → bit=1 (imprime negro)
+              const lum = 0.299*px[idx] + 0.587*px[idx+1] + 0.114*px[idx+2];
+              if(lum < 128) byte |= (0x80 >> bit);
+            }
+          }
+          rowHex += byte.toString(16).padStart(2,'0').toUpperCase();
+        }
+        hex += rowHex;
+      }
+      const totalBytes = bytesPerRow * targetH;
+      res({ hex, totalBytes, bytesPerRow, w: targetW, h: targetH });
+    };
+    img.onerror = () => res(null);
+    img.src = src;
+  });
+}
+
+async function buildZPL(d){
+  const W = 1218, H = 812;
+  const L = 230,  R = 900;
+  const CX = Math.round((L + R) / 2);
 
   const _rv = resolveVenc(d);
-  const fv = _rv ? (([y,m]) => m+'/'+y.slice(2))(_rv.split('-')) : '';
+  const fv  = _rv ? (([y,m]) => m+'/'+y.slice(2))(_rv.split('-')) : '';
   const logoTxt = LOGO_TEXT[(d.logo||'dmp').toLowerCase()] || 'DMP';
 
-  // Título tamaño adaptativo
-  const tSize = d.titulo.length > 18 ? 40 : d.titulo.length > 12 ? 50 : 58;
+  // Título — tamaño adaptativo
+  const tSz = d.titulo.length > 18 ? 44 : d.titulo.length > 12 ? 52 : 60;
 
-  // Info columna derecha (solo campos con valor)
-  const infoLines = [
-    d.dosis ? 'Dosis: '+d.dosis       : '',
-    d.pais  ? 'Origen: '+d.pais       : '',
-    fv      ? 'Venc: '+fv             : '',
+  // Info derecha
+  const infoItems = [
+    d.dosis ? 'Dosis: '+d.dosis   : '',
+    d.pais  ? 'Origen: '+d.pais   : '',
+    fv      ? 'Venc: '+fv         : '',
   ].filter(Boolean);
-  const infoZpl = infoLines.map((line, i) =>
-    `^FO${R+8},${H-200+(i*22)}^A0N,16,16^FD${line}^FS`
+  const bcH = 70, bcY = H - bcH - 14;
+  const infoStartY = bcY - infoItems.length * 22 - 12;
+  const infoZpl = infoItems.map((line,i) =>
+    `^FO${R+10},${infoStartY + i*22}^A0N,18,18^FD${line}^FS`
   ).join('\n');
 
-  // Footer
-  const footerZpl = d.footer
-    ? `^FO${L+10},${H-16}^A0N,12,12^FD${d.footer.substring(0,80)}^FS`
-    : '';
-
-  // Subtitulo
+  // Subtítulo
   const subZpl = d.subtitulo
-    ? `^FO${L+10},160^A0N,22,22^FD${d.subtitulo}^FS`
-    : '';
+    ? `^FO${L+10},175^A0N,22,22^FD${d.subtitulo}^FS` : '';
+
+  // Footer — centrado en col central
+  const footerZpl = d.footer
+    ? `^FO${L+10},${H-20}^A0N,14,14^FD${d.footer.substring(0,85)}^FS` : '';
+
+  // Logo como GRF o texto
+  let logoZpl = '';
+  if((d.logo||'dmp').toLowerCase() === 'dmp'){
+    // Intentar convertir logo a GRF
+    const grf = await logoToGRF(160, 96);
+    if(grf){
+      const dataLen  = grf.totalBytes * 2;
+      const totalLen = dataLen;
+      logoZpl = `^FO${CX-80},16^GFA,${totalLen},${totalLen},${grf.bytesPerRow*2},${grf.hex}^FS`;
+    } else {
+      // Fallback: texto
+      logoZpl = `^FO${CX-60},16^GB120,52,52^FS\n^FO${CX-52},20^FR^A0N,40,40^FD${logoTxt}^FS`;
+    }
+  } else {
+    logoZpl = `^FO${CX-60},16^GB120,52,52^FS\n^FO${CX-52},20^FR^A0N,40,40^FD${logoTxt}^FS`;
+  }
+
+  // Texto izquierda rotado: ^A0R = rotate 90° clockwise
+  // En ZPL ^A0R escribe de abajo hacia arriba
+  // Posicionamos dos bloques en x=12 y x=80
+  const leftZpl = `
+; Bloque 1 — Manipulacion y almacenaje
+^FO12,${H-10}^A0R,16,16^FDManipulacion y almacenaje:^FS
+^FO32,${H-10}^A0R,13,13^FDUtilice siempre EPP adecuado.^FS
+^FO48,${H-10}^A0R,13,13^FDAlmacene en areas secas, frescas y ventiladas.^FS
+^FO64,${H-10}^A0R,13,13^FDEvite calor intenso y luz solar directa.^FS
+; Bloque 2 — Primeros auxilios
+^FO100,${H-10}^A0R,16,16^FDPrimeros auxilios:^FS
+^FO120,${H-10}^A0R,13,13^FDEn caso de intoxicacion consulte a su medico^FS
+^FO136,${H-10}^A0R,13,13^FDo llame al CITUC: 02 2635 3800^FS
+^FO152,${H-10}^A0R,13,13^FDAtencion 24hrs todos los dias.^FS
+; Distribuidor
+^FO200,${H-10}^A0R,11,11^FDCybernetic SpA, Providencia, Santiago.^FS`;
 
   return `^XA
 ^PW${W}
@@ -760,407 +837,37 @@ function buildZPL(d){
 ^CI28
 ^MMT
 
-; ── Borde exterior ──
-^FO2,2^GB${W-4},${H-4},3^FS
+; Separadores de columnas
+^FO${L},0^GB2,${H},2^FS
+^FO${R},0^GB2,${H},2^FS
 
-; ── Separador izq (x=${L}) ──
-^FO${L},0^GB3,${H},3^FS
+; ══ COL IZQUIERDA ══${leftZpl}
 
-; ── Separador der (x=${R}) ──
-^FO${R},0^GB3,${H},3^FS
-
-; ══ COL IZQUIERDA — texto seguridad rotado 90° ══
-; ^A0R = fuente rotada, texto corre de abajo hacia arriba
-^FO12,${H-10}^A0R,13,13^FDManipulacion y almacenaje:^FS
-^FO30,${H-10}^A0R,11,11^FDUtilice siempre EPP adecuado.^FS
-^FO48,${H-10}^A0R,11,11^FDAlmacene en areas secas, frescas y ventiladas.^FS
-^FO66,${H-10}^A0R,11,11^FDEvite calor intenso y luz solar directa.^FS
-
-^FO100,${H-10}^A0R,13,13^FDPrimeros auxilios:^FS
-^FO118,${H-10}^A0R,11,11^FDEn caso de intoxicacion consulte medico^FS
-^FO136,${H-10}^A0R,11,11^FDy/o llame al CITUC: 02 2635 3800^FS
-^FO154,${H-10}^A0R,11,11^FDAtencion 24hrs todos los dias.^FS
-
-^FO210,${H-10}^A0R,10,10^FDDistribuido por Cybernetic SpA, Providencia, Santiago.^FS
-
-; ══ COL CENTRAL — logo / titulo / contenido ══
-; Logo box
-^FO${L+120},18^GB180,56,56^FS
-^FO${L+128},24^FR^A0N,42,42^FD${logoTxt}^FS
-
+; ══ COL CENTRAL ══
+; Logo
+${logoZpl}
 ; Titulo
-^FO${L+8},95^A0N,${tSize},${tSize}^FD${d.titulo}^FS
-
-; Subtitulo
+^FO${L+10},128^A0N,${tSz},${tSz}^FD${d.titulo}^FS
 ${subZpl}
-
 ; Divider decorativo
-^FO${L+320},${H/2-50}^GB3,100,3^FS
-
-; CONTENIDO NETO — parte inferior
+^FO${CX},240^GB2,80,2^FS
+; Contenido neto
 ^FO${L+40},${H-130}^A0N,18,18^FDCONTENIDO NETO^FS
-^FO${L+30},${H-108}^A0N,46,44^FD${d.contenido}^FS
-
+^FO${L+30},${H-108}^A0N,52,50^FD${d.contenido}^FS
 ; Footer
 ${footerZpl}
 
-; ══ COL DERECHA — info + barcode ══
+; ══ COL DERECHA ══
 ${infoZpl}
-
-; Barcode EAN-13 — esquina inferior derecha
-^FO${R+8},${H-145}
-^BY2,3,68
-^BEN,68,Y,N
+; Barcode EAN-13
+^FO${R+8},${bcY}
+^BY2,3,${bcH}
+^BEN,${bcH},Y,N
 ^FD${d.ean13}^FS
 
 ^XZ`;
 }
 
-function copiarZPL(){
-  navigator.clipboard.writeText(document.getElementById('zpl-out').textContent)
-    .then(()=>toast('ZPL copiado ✓','ok'));
-}
-
-// ══ GUARDAR ══
-async function guardar(){
-  if(!window.$db){ toast('Firebase no conectado','err'); return; }
-  const d = datos();
-  const base = {...d};
-  delete base.contenidos;
-  try {
-    let count = 0;
-    for(const cont of d.contenidos){
-      const ean = makeEAN(); // EAN único por variante
-      const doc = {
-        ...base,
-        contenido: cont,
-        titulo_completo: d.titulo + ' - ' + cont,
-        ean13: ean,
-        zpl: buildZPL({...base, contenido: cont, ean13: ean}),
-        created_at: window.$ts(),
-      };
-      await window.$add(window.$col('etiquetas'), doc);
-      count++;
-    }
-    const msg = count > 1 ? count+' etiquetas guardadas' : '1 etiqueta guardada';
-    const conts = d.contenidos.join(', ');
-    mostrarConfirmacion(msg, d.titulo, conts);
-  } catch(e){ toast('Error: '+e.message,'err'); }
-}
-
-function mostrarConfirmacion(msg, titulo, contenidos){
-  // Crear overlay de confirmación
-  const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:2000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
-  ov.innerHTML = '';
-
-  const box = document.createElement('div');
-  box.style.cssText = 'background:#fff;border-radius:14px;padding:32px 28px;max-width:420px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.15);';
-
-  const icon = document.createElement('div');
-  icon.style.cssText = 'font-size:48px;margin-bottom:12px;';
-  icon.textContent = '✅';
-
-  const h = document.createElement('div');
-  h.style.cssText = 'font-family:"Bebas Neue",sans-serif;font-size:22px;letter-spacing:1px;color:#0f1117;margin-bottom:6px;';
-  h.textContent = msg;
-
-  const sub = document.createElement('div');
-  sub.style.cssText = 'font-size:14px;color:#6b7280;margin-bottom:4px;';
-  sub.textContent = titulo;
-
-  const cont = document.createElement('div');
-  cont.style.cssText = 'font-size:13px;color:#4f46e5;font-weight:600;margin-bottom:24px;font-family:"DM Mono",monospace;';
-  cont.textContent = contenidos;
-
-  const btnRow = document.createElement('div');
-  btnRow.style.cssText = 'display:flex;gap:10px;justify-content:center;';
-
-  const btnBuscar = document.createElement('button');
-  btnBuscar.className = 'btn btn-dark';
-  btnBuscar.style.cssText = 'flex:1;justify-content:center;';
-  btnBuscar.textContent = 'Ver etiquetas';
-  btnBuscar.onclick = () => { document.body.removeChild(ov); showTab('buscar'); };
-
-  const btnNueva = document.createElement('button');
-  btnNueva.className = 'btn btn-outline';
-  btnNueva.style.cssText = 'flex:1;justify-content:center;';
-  btnNueva.textContent = 'Crear otra';
-  btnNueva.onclick = () => { document.body.removeChild(ov); };
-
-  btnRow.appendChild(btnBuscar);
-  btnRow.appendChild(btnNueva);
-
-  box.appendChild(icon);
-  box.appendChild(h);
-  box.appendChild(sub);
-  box.appendChild(cont);
-  box.appendChild(btnRow);
-  ov.appendChild(box);
-
-  // Cerrar al click fuera
-  ov.addEventListener('click', (e) => { if(e.target===ov) document.body.removeChild(ov); });
-
-  document.body.appendChild(ov);
-}
-
-// ══ BUSCAR ══
-let todas=[];
-async function cargar(){
-  if(!window.$db){
-    document.getElementById('lista').innerHTML='<div class="empty"><div class="empty-icon">🔌</div><p>Configura Firebase primero.</p></div>';
-    return;
-  }
-  document.getElementById('lista').innerHTML='<div class="loader"><div class="spinner"></div></div>';
-  try {
-    const snap=await window.$get(window.$q(window.$col('etiquetas'),window.$ord('created_at','desc')));
-    todas=snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderLista(todas);
-  } catch(e){
-    document.getElementById('lista').innerHTML=`<div class="empty"><div class="empty-icon">⚠️</div><p>${e.message}</p></div>`;
-  }
-}
-
-function filtrar(){
-  const q=document.getElementById('search-q').value.toLowerCase();
-  renderLista(todas.filter(e=>(e.titulo||'').toLowerCase().includes(q)||(e.subtitulo||'').toLowerCase().includes(q)||(e.ean13||'').includes(q)));
-}
-
-function renderLista(lista){
-  if(!lista.length){
-    document.getElementById('lista').innerHTML='<div class="empty"><div class="empty-icon">📭</div><p>No hay etiquetas guardadas aún.</p></div>';
-    return;
-  }
-  const fv=e=>e.venc?(([y,m])=>`Venc: ${m}/${y.slice(2)}`)(e.venc.split('-')):'';
-  document.getElementById('lista').innerHTML=
-    `<div class="cards-grid">${lista.map(e=>`
-      <div class="ecard">
-        <div class="ecard-thumb"><canvas id="cv-${e.id}" style="width:280px;height:187px;display:block;"></canvas></div>
-        <div class="ecard-body">
-          <div class="ecard-titulo">${e.titulo||'—'}</div>
-          <div class="ecard-sub">${e.subtitulo||''} · ${e.contenido||''}</div>
-          <div class="chips">
-            <span class="chip">${e.ean13||''}</span>
-            ${fv(e)?`<span class="chip">${fv(e)}</span>`:''}
-            <span class="chip">${(e.logo||'').toUpperCase()}</span>
-          </div>
-          <div class="ecard-acts">
-            <button class="btn btn-dark btn-sm" onclick="abrirModal('${e.id}')">🖨️ Imprimir</button>
-            <button class="btn btn-outline btn-sm" onclick="abrirEdit('${e.id}')">✏️ Editar</button>
-            <button class="btn btn-outline btn-sm" onclick="copyZPLcard('${e.id}')">📋 ZPL</button>
-            <button class="btn btn-delete btn-sm" onclick="eliminarCard('${e.id}','${e.titulo_completo||e.titulo||''}')">🗑</button>
-          </div>
-        </div>
-      </div>`).join('')}</div>`;
-  // Draw canvas previews on cards
-  setTimeout(()=>{
-    lista.forEach(e=>{
-      const cv = document.getElementById('cv-'+e.id);
-      if(!cv) return;
-      cv.width  = 560; cv.height = 373;
-      cv.style.width='280px'; cv.style.height='187px';
-      const ctx = cv.getContext('2d');
-      ctx.scale(2,2);
-      dibujarEtiquetaCanvas(ctx, e, 280, 187);
-    });
-  }, 150);
-}
-
-// ══ MODAL VER/IMPRIMIR ══
-let printMode = 'html'; // 'html' | 'zpl'
-
-function abrirModal(id){
-  const e = todas.find(x=>x.id===id); if(!e) return;
-
-  document.getElementById('modal-titulo').textContent = e.titulo_completo||e.titulo||'Etiqueta';
-
-  // Build modal with DOM to avoid backtick/quote escaping issues
-  const body = document.getElementById('modal-body');
-  body.innerHTML = '';
-
-  // Preview usando canvas (igual que impresión)
-  const prev = document.createElement('div');
-  prev.style.cssText = 'background:#c8ccd4;border-radius:8px;padding:16px;display:flex;justify-content:center;overflow:hidden;margin-bottom:16px;';
-  const prevCv = document.createElement('canvas');
-  const MPW = 500, MPH = Math.round(500*10/15);
-  prevCv.width = MPW*2; prevCv.height = MPH*2;
-  prevCv.style.cssText = 'width:'+MPW+'px;height:'+MPH+'px;border-radius:2px;box-shadow:0 2px 10px rgba(0,0,0,.2);max-width:100%;';
-  prev.appendChild(prevCv);
-  body.appendChild(prev);
-  // Dibujar async
-  (async()=>{
-    const mctx = prevCv.getContext('2d');
-    mctx.scale(2,2);
-    await dibujarEtiquetaCanvas(mctx, e, MPW, MPH);
-  })();
-
-  // Qty row
-  const qtyRow = document.createElement('div');
-  qtyRow.className = 'print-qty-row';
-  qtyRow.innerHTML = '<label>Cantidad de etiquetas</label>';
-  const qtyIn = document.createElement('input');
-  qtyIn.type='number'; qtyIn.id='print-qty'; qtyIn.value='1'; qtyIn.min='1'; qtyIn.max='500';
-  qtyRow.appendChild(qtyIn);
-  body.appendChild(qtyRow);
-
-  // Mode buttons
-  const modeRow = document.createElement('div');
-  modeRow.className = 'print-mode-row';
-  const btnHtml = document.createElement('button');
-  btnHtml.className='mode-btn active'; btnHtml.id='mode-html';
-  btnHtml.textContent='🖨️ Imprimir'; btnHtml.onclick=()=>setPrintMode('html');
-  const btnPdf = document.createElement('button');
-  btnPdf.className='mode-btn'; btnPdf.id='mode-pdf';
-  btnPdf.textContent='📄 Exportar PDF'; btnPdf.onclick=()=>setPrintMode('pdf');
-  const btnZpl = document.createElement('button');
-  btnZpl.className='mode-btn'; btnZpl.id='mode-zpl';
-  btnZpl.textContent='📋 Copiar ZPL'; btnZpl.onclick=()=>setPrintMode('zpl');
-  modeRow.appendChild(btnHtml); modeRow.appendChild(btnPdf); modeRow.appendChild(btnZpl);
-  body.appendChild(modeRow);
-
-  // Action buttons
-  const actRow = document.createElement('div');
-  actRow.style.cssText = 'display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;';
-  const btnEjec = document.createElement('button');
-  btnEjec.className='btn btn-dark'; btnEjec.style.cssText='flex:1;justify-content:center;';
-  btnEjec.textContent='Ejecutar'; btnEjec.onclick=()=>ejecutarImpresion(id);
-  const btnCopyZpl = document.createElement('button');
-  btnCopyZpl.className='btn btn-outline'; btnCopyZpl.textContent='Copiar ZPL';
-  btnCopyZpl.onclick=()=>copyZPLcard(id);
-  actRow.appendChild(btnEjec); actRow.appendChild(btnCopyZpl);
-  body.appendChild(actRow);
-
-  // ZPL preview box (set textContent to avoid injection)
-  const zplBox = document.createElement('div');
-  zplBox.className='zpl-box';
-  const zplHdr = document.createElement('div');
-  zplHdr.className='zpl-hdr';
-  zplHdr.innerHTML='<span class="zpl-lbl">ZPL Preview</span>';
-  const zplPre = document.createElement('pre');
-  zplPre.style.cssText='font-size:10px;color:#64b5f6;white-space:pre-wrap;max-height:130px;overflow-y:auto;';
-  zplPre.textContent = buildZPL(e); // safe: textContent escapes everything
-  zplBox.appendChild(zplHdr); zplBox.appendChild(zplPre);
-  body.appendChild(zplBox);
-
-  document.getElementById('modal-ov').classList.add('open');
-  setTimeout(()=>drawBC(e.ean13,'bc-m'+id), 80);
-}
-
-function setPrintMode(mode){
-  printMode = mode;
-  ['html','pdf','zpl'].forEach(m => {
-    const el = document.getElementById('mode-'+m);
-    if(el) el.classList.toggle('active', m===mode);
-  });
-}
-
-function ejecutarImpresion(id){
-  const e   = todas.find(x=>x.id===id); if(!e) return;
-  const qty = Math.max(1, parseInt(document.getElementById('print-qty').value)||1);
-  if(printMode === 'zpl'){
-    const zpl = buildZPL(e);
-    const sep = '\n';
-    const multi = Array(qty).fill(zpl).join(sep);
-    navigator.clipboard.writeText(multi).then(()=>toast('ZPL x'+qty+' copiado','ok'));
-  } else if(printMode === 'pdf'){
-    exportarPDF(e, qty);
-  } else {
-    imprimirBrowser(e, qty);
-  }
-}
-
-function cerrarModal(){ document.getElementById('modal-ov').classList.remove('open'); }
-
-
-async function imprimirBrowser(e, qty){
-  toast('Renderizando a 300 DPI...', 'ok');
-  await new Promise(r => setTimeout(r, 80));
-
-  // 300 DPI: 150mm=1772px, 100mm=1181px
-  const CW = 1772, CH = 1181;
-
-  // Generar todas las páginas como imágenes PNG de alta resolución
-  const paginas = [];
-  for(let i=0; i<qty; i++){
-    const cv = document.createElement('canvas');
-    cv.width = CW; cv.height = CH;
-    const ctx = cv.getContext('2d');
-    await dibujarEtiquetaCanvas(ctx, e, CW, CH);
-    paginas.push(cv.toDataURL('image/png'));
-  }
-
-  // Abrir ventana de impresión con imágenes a 150x100mm
-  const printWin = window.open('', '_blank', 'width=900,height=700');
-  if(!printWin){ toast('Permite ventanas emergentes','err'); return; }
-
-  const imgsHTML = paginas.map(src =>
-    '<div class="pg"><img src="'+src+'" class="lbl-img"></div>'
-  ).join('');
-
-  printWin.document.write(`<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>Etiqueta — ${(e.titulo_completo||e.titulo||'').toUpperCase()}</title>
-<style>
-  @page { size: 150mm 100mm landscape; margin: 0; }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  html, body { margin:0; padding:0; background: #fff; width:150mm; }
-  .pg {
-    width: 150mm; height: 100mm;
-    overflow: hidden; position: relative;
-    page-break-after: always; page-break-inside: avoid;
-  }
-  .pg:last-child { page-break-after: avoid; }
-  .lbl-img {
-    position: absolute; top:0; left:0;
-    width: 150mm; height: 100mm;
-    display: block;
-  }
-  @media screen {
-    body { background: #666; padding: 20px; display:flex; flex-direction:column; gap:20px; align-items:center; width:auto; }
-    .pg { box-shadow:0 2px 20px rgba(0,0,0,.4); }
-  }
-</style>
-</head><body>
-${imgsHTML}
-<script>
-  // Auto-imprimir cuando cargan todas las imágenes
-  let loaded = 0;
-  const imgs = document.querySelectorAll('img');
-  function tryPrint(){ loaded++; if(loaded >= imgs.length){ setTimeout(()=>{ window.print(); },400); } }
-  imgs.forEach(img => { if(img.complete) tryPrint(); else { img.onload=tryPrint; img.onerror=tryPrint; } });
-  if(imgs.length === 0) setTimeout(()=>window.print(), 400);
-<\/script>
-</body></html>`);
-  printWin.document.close();
-}
-
-async function exportarPDF(e, qty){
-  toast('Generando PDF...','ok');
-  await new Promise(r => setTimeout(r, 50));
-
-  const { jsPDF } = window.jspdf;
-  // 150mm × 100mm landscape @ 96dpi equiv: 1px = 0.2646mm → 150mm = 567px, 100mm = 378px
-  const PW = 567, PH = 378; // px a 96dpi
-  const pdf = new jsPDF({ orientation:'landscape', unit:'mm', format:[150,100] });
-
-  for(let pg=0; pg<qty; pg++){
-    if(pg > 0) pdf.addPage([150,100],'landscape');
-
-    const cv = document.createElement('canvas');
-    cv.width  = PW * 2; // x2 para mayor resolución
-    cv.height = PH * 2;
-    const ctx = cv.getContext('2d');
-    ctx.scale(2, 2);
-
-    await dibujarEtiquetaCanvas(ctx, e, PW, PH);
-
-    const img = cv.toDataURL('image/jpeg', 0.97);
-    pdf.addImage(img, 'JPEG', 0, 0, 150, 100);
-  }
-
-  const nombre = (e.titulo_completo||e.titulo||'etiqueta').replace(/[^a-z0-9áéíóú]/gi,'-').toLowerCase();
-  pdf.save(nombre + (qty>1 ? '-x'+qty : '') + '.pdf');
-  toast('PDF descargado ✓','ok');
-}
 
 async function dibujarEtiquetaCanvas(ctx, e, W, H){
   await document.fonts.ready;
@@ -1474,9 +1181,288 @@ function eliminarCard(id, nombre){
   document.body.appendChild(ov);
 }
 
-function copyZPLcard(id){
+async function copyZPLcard(id){
   const e=todas.find(x=>x.id===id); if(!e) return;
-  navigator.clipboard.writeText(buildZPL(e)).then(()=>toast('ZPL copiado ✓','ok'));
+  const zpl = await buildZPL(e);
+  navigator.clipboard.writeText(zpl).then(()=>toast('ZPL copiado ✓','ok'));
+}
+
+// ══ BUSCAR / LISTAR ══
+let todas = [];
+
+async function cargar(){
+  if(!window.$db){
+    document.getElementById('lista').innerHTML =
+      '<div class="empty"><div class="empty-icon">🔌</div><p>Configura Firebase primero.</p></div>';
+    return;
+  }
+  document.getElementById('lista').innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const snap = await window.$get(window.$q(window.$col('etiquetas'), window.$ord('created_at','desc')));
+    todas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderLista(todas);
+  } catch(e){
+    document.getElementById('lista').innerHTML =
+      '<div class="empty"><div class="empty-icon">⚠️</div><p>'+e.message+'</p></div>';
+  }
+}
+
+function filtrar(){
+  const q = document.getElementById('search-q').value.toLowerCase();
+  renderLista(todas.filter(e =>
+    (e.titulo||'').toLowerCase().includes(q) ||
+    (e.subtitulo||'').toLowerCase().includes(q) ||
+    (e.ean13||'').includes(q)
+  ));
+}
+
+function renderLista(lista){
+  if(!lista.length){
+    document.getElementById('lista').innerHTML =
+      '<div class="empty"><div class="empty-icon">📭</div><p>No hay etiquetas guardadas aún.</p></div>';
+    return;
+  }
+  const fv = e => e.venc ? (([y,m])=>'Venc: '+m+'/'+y.slice(2))(e.venc.split('-')) : '';
+  document.getElementById('lista').innerHTML =
+    '<div class="cards-grid">'+lista.map(e => `
+      <div class="ecard">
+        <div class="ecard-thumb"><canvas id="cv-${e.id}" style="width:280px;height:187px;display:block;"></canvas></div>
+        <div class="ecard-body">
+          <div class="ecard-titulo">${e.titulo||'—'}</div>
+          <div class="ecard-sub">${e.subtitulo||''} · ${e.contenido||''}</div>
+          <div class="chips">
+            <span class="chip">${e.ean13||''}</span>
+            ${fv(e)?'<span class="chip">'+fv(e)+'</span>':''}
+            <span class="chip">${(e.logo||'').toUpperCase()}</span>
+          </div>
+          <div class="ecard-acts">
+            <button class="btn btn-dark btn-sm" onclick="abrirModal('${e.id}')">🖨️ Imprimir</button>
+            <button class="btn btn-outline btn-sm" onclick="abrirEdit('${e.id}')">✏️ Editar</button>
+            <button class="btn btn-outline btn-sm" onclick="copyZPLcard('${e.id}')">📋 ZPL</button>
+            <button class="btn btn-delete btn-sm" onclick="eliminarCard('${e.id}','${(e.titulo_completo||e.titulo||'').replace(/'/g,'')}'  )">🗑</button>
+          </div>
+        </div>
+      </div>`).join('')+'</div>';
+
+  setTimeout(()=>{
+    lista.forEach(e=>{
+      const cv = document.getElementById('cv-'+e.id);
+      if(!cv) return;
+      cv.width = 560; cv.height = 373;
+      cv.style.width='280px'; cv.style.height='187px';
+      const ctx = cv.getContext('2d');
+      ctx.scale(2,2);
+      dibujarEtiquetaCanvas(ctx, e, 280, 187);
+    });
+  }, 150);
+}
+
+// ══ GUARDAR ══
+async function guardar(){
+  if(!window.$db){ toast('Firebase no conectado','err'); return; }
+  const d = datos();
+  const base = {...d};
+  delete base.contenidos;
+  try {
+    let count = 0;
+    for(const cont of d.contenidos){
+      const ean = makeEAN();
+      const doc = {
+        ...base,
+        contenido:       cont,
+        titulo_completo: d.titulo + ' - ' + cont,
+        ean13:           ean,
+        zpl:             await buildZPL({...base, contenido: cont, ean13: ean}),
+        created_at:      window.$ts(),
+      };
+      await window.$add(window.$col('etiquetas'), doc);
+      count++;
+    }
+    mostrarConfirmacion(
+      count > 1 ? count+' etiquetas guardadas' : '1 etiqueta guardada',
+      d.titulo,
+      d.contenidos.join(', ')
+    );
+  } catch(err){ toast('Error: '+err.message,'err'); }
+}
+
+// ══ MODAL IMPRIMIR ══
+let printMode = 'html';
+
+function abrirModal(id){
+  const e = todas.find(x=>x.id===id); if(!e) return;
+  document.getElementById('modal-titulo').textContent = e.titulo_completo||e.titulo||'Etiqueta';
+  const body = document.getElementById('modal-body');
+  body.innerHTML = '';
+
+  // Preview canvas
+  const prev = document.createElement('div');
+  prev.style.cssText = 'background:#c8ccd4;border-radius:8px;padding:16px;display:flex;justify-content:center;overflow:hidden;margin-bottom:16px;';
+  const prevCv = document.createElement('canvas');
+  const MPW = 500, MPH = Math.round(500*10/15);
+  prevCv.width=MPW*2; prevCv.height=MPH*2;
+  prevCv.style.cssText='width:'+MPW+'px;height:'+MPH+'px;border-radius:2px;box-shadow:0 2px 10px rgba(0,0,0,.2);max-width:100%;';
+  prev.appendChild(prevCv); body.appendChild(prev);
+  (async()=>{ const mctx=prevCv.getContext('2d'); mctx.scale(2,2); await dibujarEtiquetaCanvas(mctx,e,MPW,MPH); })();
+
+  // Qty
+  const qtyRow = document.createElement('div');
+  qtyRow.className='print-qty-row';
+  qtyRow.innerHTML='<label>Cantidad de etiquetas</label>';
+  const qtyIn = document.createElement('input');
+  qtyIn.type='number'; qtyIn.id='print-qty'; qtyIn.value='1'; qtyIn.min='1'; qtyIn.max='500';
+  qtyRow.appendChild(qtyIn); body.appendChild(qtyRow);
+
+  // Mode buttons
+  const modeRow = document.createElement('div');
+  modeRow.className='print-mode-row';
+  const btnHtml = document.createElement('button');
+  btnHtml.className='mode-btn active'; btnHtml.id='mode-html';
+  btnHtml.textContent='🖨️ Imprimir'; btnHtml.onclick=()=>setPrintMode('html');
+  const btnPdf = document.createElement('button');
+  btnPdf.className='mode-btn'; btnPdf.id='mode-pdf';
+  btnPdf.textContent='📄 PDF'; btnPdf.onclick=()=>setPrintMode('pdf');
+  const btnZpl = document.createElement('button');
+  btnZpl.className='mode-btn'; btnZpl.id='mode-zpl';
+  btnZpl.textContent='📋 ZPL'; btnZpl.onclick=()=>setPrintMode('zpl');
+  modeRow.appendChild(btnHtml); modeRow.appendChild(btnPdf); modeRow.appendChild(btnZpl);
+  body.appendChild(modeRow);
+
+  // Action row
+  const actRow = document.createElement('div');
+  actRow.style.cssText='display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;';
+  const btnEjec = document.createElement('button');
+  btnEjec.className='btn btn-dark'; btnEjec.style.cssText='flex:1;justify-content:center;';
+  btnEjec.textContent='Ejecutar'; btnEjec.onclick=()=>ejecutarImpresion(id);
+  const btnCopyZpl = document.createElement('button');
+  btnCopyZpl.className='btn btn-outline'; btnCopyZpl.textContent='Copiar ZPL';
+  btnCopyZpl.onclick=()=>copyZPLcard(id);
+  actRow.appendChild(btnEjec); actRow.appendChild(btnCopyZpl);
+  body.appendChild(actRow);
+
+  // ZPL preview
+  const zplBox = document.createElement('div');
+  zplBox.className='zpl-box';
+  const zplHdr = document.createElement('div');
+  zplHdr.className='zpl-hdr';
+  zplHdr.innerHTML='<span class="zpl-lbl">ZPL Preview</span>';
+  const zplPre = document.createElement('pre');
+  zplPre.style.cssText='font-size:10px;color:#64b5f6;white-space:pre-wrap;max-height:130px;overflow-y:auto;';
+  buildZPL(e).then(zpl=>{ zplPre.textContent=zpl; });
+  zplBox.appendChild(zplHdr); zplBox.appendChild(zplPre);
+  body.appendChild(zplBox);
+
+  document.getElementById('modal-ov').classList.add('open');
+}
+
+function cerrarModal(){ document.getElementById('modal-ov').classList.remove('open'); }
+
+function mostrarConfirmacion(msg, titulo, contenidos){
+  const ov = document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:2000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+  const box = document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:14px;padding:32px 28px;max-width:420px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.15);';
+  const icon = document.createElement('div'); icon.style.cssText='font-size:48px;margin-bottom:12px;'; icon.textContent='✅';
+  const h = document.createElement('div'); h.style.cssText='font-family:"Bebas Neue",sans-serif;font-size:22px;letter-spacing:1px;color:#0f1117;margin-bottom:6px;'; h.textContent=msg;
+  const sub = document.createElement('div'); sub.style.cssText='font-size:14px;color:#6b7280;margin-bottom:4px;'; sub.textContent=titulo;
+  const cont = document.createElement('div'); cont.style.cssText='font-size:13px;color:#4f46e5;font-weight:600;margin-bottom:24px;font-family:"DM Mono",monospace;'; cont.textContent=contenidos;
+  const btnRow = document.createElement('div'); btnRow.style.cssText='display:flex;gap:10px;justify-content:center;';
+  const btnBuscar = document.createElement('button'); btnBuscar.className='btn btn-dark'; btnBuscar.style.cssText='flex:1;justify-content:center;'; btnBuscar.textContent='Ver etiquetas'; btnBuscar.onclick=()=>{ document.body.removeChild(ov); showTab('buscar'); };
+  const btnNueva = document.createElement('button'); btnNueva.className='btn btn-outline'; btnNueva.style.cssText='flex:1;justify-content:center;'; btnNueva.textContent='Crear otra'; btnNueva.onclick=()=>document.body.removeChild(ov);
+  btnRow.appendChild(btnBuscar); btnRow.appendChild(btnNueva);
+  box.appendChild(icon); box.appendChild(h); box.appendChild(sub); box.appendChild(cont); box.appendChild(btnRow);
+  ov.appendChild(box);
+  ov.addEventListener('click', ev=>{ if(ev.target===ov) document.body.removeChild(ov); });
+  document.body.appendChild(ov);
+}
+
+async function imprimirBrowser(e, qty){
+  toast('Renderizando a 300 DPI...','ok');
+  await new Promise(r=>setTimeout(r,80));
+  const CW=1772, CH=1181;
+  const paginas=[];
+  for(let i=0;i<qty;i++){
+    const cv=document.createElement('canvas');
+    cv.width=CW; cv.height=CH;
+    const ctx=cv.getContext('2d');
+    await dibujarEtiquetaCanvas(ctx,e,CW,CH);
+    paginas.push(cv.toDataURL('image/png'));
+  }
+  const printWin=window.open('','_blank','width=900,height=700');
+  if(!printWin){ toast('Permite ventanas emergentes','err'); return; }
+  const imgsHTML=paginas.map(src=>'<div class="pg"><img src="'+src+'" class="lbl-img"></div>').join('');
+  printWin.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Etiqueta</title>
+<style>
+@page{size:150mm 100mm landscape;margin:0;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+html,body{margin:0;padding:0;background:#fff;width:150mm;}
+.pg{width:150mm;height:100mm;overflow:hidden;position:relative;page-break-after:always;page-break-inside:avoid;}
+.pg:last-child{page-break-after:avoid;}
+.lbl-img{position:absolute;top:0;left:0;width:150mm;height:100mm;display:block;}
+@media screen{body{background:#666;padding:20px;display:flex;flex-direction:column;gap:20px;align-items:center;width:auto;}.pg{box-shadow:0 2px 20px rgba(0,0,0,.4);}}
+</style></head><body>${imgsHTML}
+<script>
+let loaded=0;
+const imgs=document.querySelectorAll('img');
+function tryPrint(){loaded++;if(loaded>=imgs.length){setTimeout(()=>window.print(),400);}}
+imgs.forEach(img=>{if(img.complete)tryPrint();else{img.onload=tryPrint;img.onerror=tryPrint;}});
+if(imgs.length===0)setTimeout(()=>window.print(),400);
+<\/script></body></html>`);
+  printWin.document.close();
+}
+
+async function exportarPDF(e, qty){
+  toast('Generando PDF...','ok');
+  await new Promise(r=>setTimeout(r,50));
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:[150,100]});
+  const CVW=1181, CVH=787;
+  for(let pg=0;pg<qty;pg++){
+    if(pg>0) pdf.addPage([150,100],'landscape');
+    const cv=document.createElement('canvas');
+    cv.width=CVW; cv.height=CVH;
+    const ctx=cv.getContext('2d');
+    await dibujarEtiquetaCanvas(ctx,e,CVW,CVH);
+    const img=cv.toDataURL('image/jpeg',0.97);
+    pdf.addImage(img,'JPEG',0,0,150,100);
+  }
+  const nombre=(e.titulo_completo||e.titulo||'etiqueta').replace(/[^a-z0-9áéíóú]/gi,'-').toLowerCase();
+  pdf.save(nombre+(qty>1?'-x'+qty:'')+'.pdf');
+  toast('PDF descargado ✓','ok');
+}
+
+function imprimir(id){
+  const e=todas.find(x=>x.id===id); if(!e) return;
+  imprimirBrowser(e,1);
+}
+
+// ══ IMPRIMIR ══
+function setPrintMode(mode){
+  printMode = mode;
+  ['html','pdf','zpl'].forEach(m => {
+    const el = document.getElementById('mode-'+m);
+    if(el) el.classList.toggle('active', m===mode);
+  });
+}
+
+async function ejecutarImpresion(id){
+  const e   = todas.find(x=>x.id===id); if(!e) return;
+  const qty = Math.max(1, parseInt(document.getElementById('print-qty').value)||1);
+  if(printMode === 'zpl'){
+    const zpl = await buildZPL(e);
+    const sep = '\n';
+    const multi = Array(qty).fill(zpl).join(sep);
+    navigator.clipboard.writeText(multi).then(()=>toast('ZPL x'+qty+' copiado','ok'));
+  } else if(printMode === 'pdf'){
+    exportarPDF(e, qty);
+  } else {
+    imprimirBrowser(e, qty);
+  }
+}
+
+function copiarZPL(){
+  const txt = document.getElementById('zpl-out').textContent;
+  navigator.clipboard.writeText(txt).then(()=>toast('ZPL copiado ✓','ok'));
 }
 
 // ══ TABS ══
