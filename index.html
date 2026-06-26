@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=Bebas+Neue&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <style>
 :root {
   --bg:      #eef0f4;
@@ -1322,7 +1322,7 @@ function abrirModal(id){
   btnHtml.textContent='🖨️ Imprimir'; btnHtml.onclick=()=>setPrintMode('html');
   const btnPdf = document.createElement('button');
   btnPdf.className='mode-btn'; btnPdf.id='mode-pdf';
-  btnPdf.textContent='📄 PDF'; btnPdf.onclick=()=>setPrintMode('pdf');
+  btnPdf.textContent='📊 PPTX'; btnPdf.onclick=()=>setPrintMode('pdf');
   const btnZpl = document.createElement('button');
   btnZpl.className='mode-btn'; btnZpl.id='mode-zpl';
   btnZpl.textContent='📋 ZPL'; btnZpl.onclick=()=>setPrintMode('zpl');
@@ -1413,23 +1413,44 @@ if(imgs.length===0)setTimeout(()=>window.print(),400);
 }
 
 async function exportarPDF(e, qty){
-  toast('Generando PDF...','ok');
+  toast('Generando PPTX...','ok');
   await new Promise(r=>setTimeout(r,50));
-  const {jsPDF}=window.jspdf;
-  const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:[150,100]});
-  const CVW=1181, CVH=787;
-  for(let pg=0;pg<qty;pg++){
-    if(pg>0) pdf.addPage([150,100],'landscape');
-    const cv=document.createElement('canvas');
-    cv.width=CVW; cv.height=CVH;
-    const ctx=cv.getContext('2d');
-    await dibujarEtiquetaCanvas(ctx,e,CVW,CVH);
-    const img=cv.toDataURL('image/jpeg',0.97);
-    pdf.addImage(img,'JPEG',0,0,150,100);
+
+  // PptxGenJS — slide de 15cm × 10cm (en pulgadas: 5.906 × 3.937)
+  const W_IN = 5.906, H_IN = 3.937; // 150mm × 100mm en pulgadas
+  const pptx = new PptxGenJS();
+  pptx.defineLayout({ name:'LABEL', width: W_IN, height: H_IN });
+  pptx.layout = 'LABEL';
+
+  // Canvas a alta resolución: 300dpi sobre 150×100mm
+  const CVW = 1772, CVH = 1181; // 300 DPI
+
+  for(let pg=0; pg<qty; pg++){
+    const slide = pptx.addSlide();
+    slide.background = { color: 'FFFFFF' };
+
+    const cv  = document.createElement('canvas');
+    cv.width  = CVW; cv.height = CVH;
+    const ctx = cv.getContext('2d');
+    await dibujarEtiquetaCanvas(ctx, e, CVW, CVH);
+
+    // PNG base64 sin prefijo
+    const dataUrl = cv.toDataURL('image/png');
+    const b64     = dataUrl.split(',')[1];
+
+    // Imagen que ocupa el slide completo
+    slide.addImage({
+      data:   'image/png;base64,' + b64,
+      x: 0, y: 0,
+      w: W_IN, h: H_IN,
+      sizing: { type: 'contain', w: W_IN, h: H_IN }
+    });
   }
-  const nombre=(e.titulo_completo||e.titulo||'etiqueta').replace(/[^a-z0-9áéíóú]/gi,'-').toLowerCase();
-  pdf.save(nombre+(qty>1?'-x'+qty:'')+'.pdf');
-  toast('PDF descargado ✓','ok');
+
+  const nombre = (e.titulo_completo||e.titulo||'etiqueta')
+    .replace(/[^a-z0-9áéíóú]/gi,'-').toLowerCase();
+  await pptx.writeFile({ fileName: nombre+(qty>1?'-x'+qty:'')+'.pptx' });
+  toast('PPTX descargado ✓','ok');
 }
 
 function imprimir(id){
