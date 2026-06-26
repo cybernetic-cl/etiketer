@@ -1066,31 +1066,30 @@ async function imprimirBrowser(e, qty){
   const printWin = window.open('', '_blank', 'width=900,height=700');
   if(!printWin){ toast('Permite ventanas emergentes','err'); return; }
 
-  const imgsHTML = paginas.map((src, i) =>
-    '<div class="pg"><img src="'+src+'" class="lbl-img">'+(i<paginas.length-1?'':'')+'</div>'
+  const imgsHTML = paginas.map(src =>
+    '<div class="pg"><img src="'+src+'" class="lbl-img"></div>'
   ).join('');
 
   printWin.document.write(`<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Etiqueta — ${(e.titulo_completo||e.titulo||'').toUpperCase()}</title>
 <style>
   @page { size: 150mm 100mm landscape; margin: 0; }
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  html, body { background: #fff; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  html, body { margin:0; padding:0; background: #fff; width:150mm; }
   .pg {
     width: 150mm; height: 100mm;
-    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; position: relative;
     page-break-after: always; page-break-inside: avoid;
-    overflow: hidden;
   }
   .pg:last-child { page-break-after: avoid; }
   .lbl-img {
+    position: absolute; top:0; left:0;
     width: 150mm; height: 100mm;
-    display: block; image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
+    display: block;
   }
   @media screen {
-    body { background: #888; padding: 20px; display:flex; flex-direction:column; gap:20px; align-items:center; }
-    .pg { background:#fff; box-shadow:0 2px 16px rgba(0,0,0,.3); }
+    body { background: #666; padding: 20px; display:flex; flex-direction:column; gap:20px; align-items:center; width:auto; }
+    .pg { box-shadow:0 2px 20px rgba(0,0,0,.4); }
   }
 </style>
 </head><body>
@@ -1139,188 +1138,188 @@ async function exportarPDF(e, qty){
 async function dibujarEtiquetaCanvas(ctx, e, W, H){
   await document.fonts.ready;
 
-  const S = W / 567; // factor escala
-  const f = n => Math.round(n * S);
+  // Escala relativa a 567x378 (preview size)
+  const S = W / 567;
+  const f = n => n * S;
 
   const fv = (() => {
     const rv = resolveVenc(e);
     return rv ? (([y,m]) => m+'/'+y.slice(2))(rv.split('-')) : '';
   })();
 
-  const L = f(118), R = f(437), cx = Math.round((f(118)+f(437))/2);
+  // Columnas (proporcional)
+  const COL_L = f(118); // ancho col izq
+  const COL_R = f(130); // ancho col der
+  const CX = COL_L + (W - COL_L - COL_R) / 2; // centro col central
 
-  // Fondo blanco
+  // ── Fondo blanco total ──
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
-  // Borde
+  // ── Borde ──
   ctx.strokeStyle = '#111';
-  ctx.lineWidth = Math.max(1, f(2));
-  ctx.strokeRect(1, 1, W-2, H-2);
+  ctx.lineWidth = f(1.5);
+  ctx.strokeRect(f(0.5), f(0.5), W - f(1), H - f(1));
 
-  // Separadores verticales
-  ctx.lineWidth = Math.max(1, f(1.5));
+  // ── Separadores verticales ──
   ctx.beginPath();
-  ctx.moveTo(L,0); ctx.lineTo(L,H);
-  ctx.moveTo(R,0); ctx.lineTo(R,H);
+  ctx.moveTo(COL_L, 0);       ctx.lineTo(COL_L, H);
+  ctx.moveTo(W - COL_R, 0);   ctx.lineTo(W - COL_R, H);
   ctx.stroke();
 
-  // ── COL IZQ — dos bloques de texto rotados -90° ──
-  // Traducimos al centro de la columna izquierda y rotamos
-  // Después de rotar: eje X corre de arriba a abajo de la etiqueta,
-  // eje Y corre de derecha a izquierda de la columna
+  // ══ COL IZQUIERDA — texto rotado -90° ══
   ctx.save();
-  ctx.translate(L/2, H/2);
-  ctx.rotate(-Math.PI/2);
-  // Ahora el "ancho" disponible es H (largo etiqueta) y el "alto" es L (ancho columna)
-  // Dividimos en dos bloques: izq (0..H/2) y der (H/2..H)
-  const sfT = f(9),  sfB = f(7.5); // título / cuerpo
-  const lineH = f(11); // interlineado
-  const colY  = -(L/2) + f(10); // Y base (arriba de la col rotada)
+  ctx.translate(COL_L / 2, H / 2);
+  ctx.rotate(-Math.PI / 2);
+  // Tras rotar: X va de -H/2 a +H/2 (a lo largo etiqueta), Y va de -COL_L/2 a +COL_L/2
+  ctx.textAlign = 'left';
 
-  const bloqueIzq = {
-    titulo: 'Manipulacion y almacenaje:',
-    lineas: [
-      'Utilice siempre EPP adecuado.',
-      'Almacene en areas secas, frescas',
-      'y ventiladas. Evite calor y sol.',
-    ]
-  };
-  const bloqueDer = {
-    titulo: 'Primeros auxilios:',
-    lineas: [
-      'En caso de intoxicacion llame al',
-      'CITUC: 02 2635 3800',
-      'Atencion 24hrs todos los dias.',
-    ]
-  };
-  const bloquePie = {
-    titulo: '',
-    lineas: ['Distribuido por Cybernetic SpA, Providencia, Santiago.']
-  };
+  const LH  = f(12);   // line height
+  const FS  = f(8.5);  // font size cuerpo
+  const FSB = f(9.5);  // font size título
 
-  // Dibuja un bloque empezando en startX
-  function drawBloque(bloque, startX){
-    let y = colY;
-    if(bloque.titulo){
-      ctx.font = 'bold '+sfT+'px "DM Sans",Arial,sans-serif';
-      ctx.fillStyle = '#111';
-      ctx.fillText(bloque.titulo, startX, y);
-      y += lineH * 1.3;
-    }
-    ctx.font = sfB+'px "DM Sans",Arial,sans-serif';
-    ctx.fillStyle = '#333';
-    bloque.lineas.forEach(l => { ctx.fillText(l, startX, y); y += lineH; });
-  }
+  const bloques = [
+    {
+      titulo: 'Manipulacion y almacenaje:',
+      lineas: ['Utilice siempre EPP adecuado.','Almacene en areas secas, frescas','y ventiladas. Evite calor y sol.']
+    },
+    {
+      titulo: 'Primeros auxilios:',
+      lineas: ['En caso de intoxicacion consulte a', 'su medico o llame al CITUC:', '02 2635 3800 — Atencion 24hrs.']
+    },
+  ];
 
-  const halfH = H / 2;
-  drawBloque(bloqueIzq, -(halfH) + f(8));
-  drawBloque(bloqueDer, -(halfH) + f(8) + halfH * 0.52);
-  // Pie de página (distribuidor) en la parte baja
-  ctx.font = 'italic '+f(7)+'px "DM Sans",Arial,sans-serif';
-  ctx.fillStyle = '#888';
-  ctx.fillText(bloquePie.lineas[0], -(halfH) + f(8), colY + f(60));
+  // Cada bloque ocupa ~H/2 en el eje rotado
+  bloques.forEach((bloque, bi) => {
+    const startX = -H/2 + f(10) + bi * (H/2 - f(10));
+    let curY = -COL_L/2 + f(14);
+
+    ctx.font = 'bold ' + FSB + 'px "DM Sans",Arial,sans-serif';
+    ctx.fillStyle = '#111';
+    ctx.fillText(bloque.titulo, startX, curY);
+    curY += LH * 1.2;
+
+    ctx.font = FS + 'px "DM Sans",Arial,sans-serif';
+    ctx.fillStyle = '#444';
+    bloque.lineas.forEach(l => { ctx.fillText(l, startX, curY); curY += LH; });
+  });
+
+  // Distribuidor al pie
+  ctx.font = 'italic ' + f(7.5) + 'px "DM Sans",Arial,sans-serif';
+  ctx.fillStyle = '#999';
+  ctx.fillText('Cybernetic SpA, Providencia, Santiago.', -H/2 + f(10), COL_L/2 - f(6));
 
   ctx.restore();
 
-  // ── COL CENTRAL ──
+  // ══ COL CENTRAL ══
+
+  // Logo
   const logoKey = (e.logo||'dmp').toLowerCase();
   const logoSrc = LOGOS[logoKey];
+  const logoW = f(90), logoH = f(54), logoY = f(14);
   if(logoSrc){
     await new Promise(res => {
       const img = new Image();
-      img.crossOrigin='anonymous';
-      img.onload = () => { ctx.drawImage(img, cx-f(42), f(12), f(84), f(50)); res(); };
+      img.crossOrigin = 'anonymous';
+      img.onload = () => { ctx.drawImage(img, CX - logoW/2, logoY, logoW, logoH); res(); };
       img.onerror = res;
       img.src = logoSrc;
     });
   } else {
-    ctx.fillStyle='#111';
-    ctx.fillRect(cx-f(55),f(12),f(110),f(44));
-    ctx.fillStyle='#fff';
-    ctx.font='bold '+f(30)+'px "Bebas Neue",Arial,sans-serif';
-    ctx.textAlign='center';
-    ctx.fillText(LOGO_TEXT[logoKey]||'DMP', cx, f(46));
+    ctx.fillStyle = '#111';
+    ctx.fillRect(CX - f(55), logoY, f(110), f(44));
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold ' + f(30) + 'px "Bebas Neue",Arial,sans-serif';
+    ctx.fillText(LOGO_TEXT[logoKey]||'DMP', CX, logoY + f(34));
   }
 
-  // Título
-  const tSz = e.titulo.length>18?f(22):e.titulo.length>12?f(26):f(30);
-  ctx.fillStyle='#111'; ctx.textAlign='center';
-  ctx.font='bold '+tSz+'px "Bebas Neue",Arial,sans-serif';
-  ctx.fillText((e.titulo||'').toUpperCase(), cx, f(82));
+  // Título — centrado
+  const tSz = e.titulo.length > 18 ? f(22) : e.titulo.length > 12 ? f(26) : f(30);
+  ctx.fillStyle = '#111';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold ' + tSz + 'px "Bebas Neue",Arial,sans-serif';
+  ctx.fillText((e.titulo||'').toUpperCase(), CX, logoY + logoH + f(32));
 
   // Subtítulo
   if(e.subtitulo){
-    ctx.fillStyle='#555';
-    ctx.font='italic '+f(11)+'px "DM Sans",Arial,sans-serif';
-    ctx.fillText(e.subtitulo, cx, f(98));
+    ctx.fillStyle = '#555';
+    ctx.font = 'italic ' + f(11) + 'px "DM Sans",Arial,sans-serif';
+    ctx.fillText(e.subtitulo, CX, logoY + logoH + f(50));
   }
 
   // Divider
-  ctx.strokeStyle='#111'; ctx.lineWidth=Math.max(1,f(1));
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = f(1);
+  const divY = H / 2 - f(25);
   ctx.beginPath();
-  ctx.moveTo(cx, H/2-f(30)); ctx.lineTo(cx, H/2+f(10));
+  ctx.moveTo(CX, divY); ctx.lineTo(CX, divY + f(50));
   ctx.stroke();
 
   // Contenido neto
-  ctx.fillStyle='#666'; ctx.textAlign='center';
-  ctx.font='600 '+f(9)+'px "DM Sans",Arial,sans-serif';
-  ctx.fillText('CONTENIDO NETO', cx, H-f(62));
-  ctx.fillStyle='#111';
-  ctx.font='bold '+f(24)+'px "DM Sans",Arial,sans-serif';
-  ctx.fillText(e.contenido||'', cx, H-f(36));
+  ctx.fillStyle = '#666';
+  ctx.textAlign = 'center';
+  ctx.font = '600 ' + f(9) + 'px "DM Sans",Arial,sans-serif';
+  ctx.fillText('CONTENIDO NETO', CX, H - f(58));
 
-  // Footer — centrado en col central, con margen suficiente del borde
+  ctx.fillStyle = '#111';
+  ctx.font = 'bold ' + f(26) + 'px "DM Sans",Arial,sans-serif';
+  ctx.fillText(e.contenido||'', CX, H - f(30));
+
+  // Footer — tamaño legible, bien posicionado
   if(e.footer){
-    ctx.fillStyle='#777'; ctx.textAlign='center';
-    const footerSize = f(8);
-    ctx.font='italic '+footerSize+'px "DM Sans",Arial,sans-serif';
-    // Truncar si es muy largo para el ancho disponible
-    const maxW = R - L - f(10);
-    let footerTxt = e.footer;
-    while(footerTxt.length > 10 && ctx.measureText(footerTxt).width > maxW){
-      footerTxt = footerTxt.substring(0, footerTxt.length - 4) + '...';
+    ctx.fillStyle = '#777';
+    ctx.textAlign = 'center';
+    const fSize = f(9);
+    ctx.font = 'italic ' + fSize + 'px "DM Sans",Arial,sans-serif';
+    const maxW = W - COL_L - COL_R - f(20);
+    let ftxt = e.footer;
+    while(ftxt.length > 10 && ctx.measureText(ftxt).width > maxW){
+      ftxt = ftxt.slice(0, -4) + '...';
     }
-    ctx.fillText(footerTxt, cx, H - f(14));
+    ctx.fillText(ftxt, CX, H - f(10));
   }
 
-  // ── COL DER ──
-  const rx = R+f(8);
+  // ══ COL DERECHA ══
+  const RX = W - COL_R + f(8);
   ctx.save();
-  ctx.textAlign='left';
-  const info = [
-    e.dosis?['Dosis: ',e.dosis]:null,
-    e.pais?['Origen: ',e.pais]:null,
-    fv?['Venc: ',fv]:null,
+  ctx.textAlign = 'left';
+
+  const infoItems = [
+    e.dosis ? ['Dosis: ', e.dosis]   : null,
+    e.pais  ? ['Origen: ', e.pais]   : null,
+    fv      ? ['Venc: ', fv]         : null,
   ].filter(Boolean);
 
-  // Calcular Y de inicio: dejar espacio para barcode abajo
-  const infoStartY = H - f(55) - f(10) - info.length * f(17) - f(10);
-  info.forEach(([lbl,val],i)=>{
-    const y = infoStartY + i*f(17);
+  const bcH   = f(60);
+  const bcY   = H - bcH - f(12);
+  const iFS   = f(9.5);
+  const iStartY = bcY - infoItems.length * f(18) - f(8);
+
+  infoItems.forEach(([lbl, val], i) => {
+    const y = iStartY + i * f(18);
     ctx.fillStyle = '#111';
-    ctx.font = 'bold '+f(9)+'px "DM Sans",Arial,sans-serif';
-    ctx.fillText(lbl, rx, y);
-    const lblW = ctx.measureText(lbl).width;
+    ctx.font = 'bold ' + iFS + 'px "DM Sans",Arial,sans-serif';
+    ctx.fillText(lbl, RX, y);
     ctx.fillStyle = '#333';
-    ctx.font = f(9)+'px "DM Sans",Arial,sans-serif';
-    ctx.fillText(val, rx+lblW, y);
+    ctx.font = iFS + 'px "DM Sans",Arial,sans-serif';
+    ctx.fillText(val, RX + ctx.measureText(lbl).width, y);
   });
   ctx.restore();
 
-  // Barcode
-  if(e.ean13 && e.ean13.length===13 && /^[0-9]+$/.test(e.ean13)){
-    const bcCv = document.createElement('canvas');
-    const bcH  = f(55);
-    const bcW  = W-R-f(12);
+  // Barcode EAN-13
+  if(e.ean13 && e.ean13.length === 13 && /^[0-9]+$/.test(e.ean13)){
+    const bcCv  = document.createElement('canvas');
+    const bcW   = COL_R - f(16);
+    const bcBars = Math.max(1, Math.round(bcW / 95));
     try {
       JsBarcode(bcCv, e.ean13, {
-        format:'EAN13', width:Math.max(1,Math.round(bcW/95)),
-        height:bcH, displayValue:true, fontSize:f(9),
-        margin:f(3), background:'#ffffff', lineColor:'#000',
+        format: 'EAN13', width: bcBars, height: bcH,
+        displayValue: true, fontSize: f(9), margin: f(3),
+        background: '#ffffff', lineColor: '#000',
       });
-      ctx.drawImage(bcCv, R+f(4), H-bcH-f(10), Math.min(bcW,bcCv.width), bcH);
-    } catch(err){ console.warn('BC',err); }
+      ctx.drawImage(bcCv, W - COL_R + f(4), bcY, Math.min(bcW, bcCv.width), bcH);
+    } catch(err){ console.warn('BC', err); }
   }
 }
 
