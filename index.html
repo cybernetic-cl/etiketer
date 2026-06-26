@@ -405,7 +405,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     <div class="zpl-box">
       <div class="zpl-hdr">
         <span class="zpl-lbl">ZPL · 203 DPI · 1218 × 812 dots</span>
-        <button class="btn btn-outline btn-sm" style="background:#1e2130;color:#64b5f6;border-color:#2a3550;" onclick="copiarZPL()">📋 Copiar</button>
+
       </div>
       <pre id="zpl-out">^XA^XZ</pre>
     </div>
@@ -788,9 +788,9 @@ async function buildZPL(d){
   // Logo GRF si es DMP
   let logoZpl = '';
   if((d.logo||'dmp').toLowerCase() === 'dmp'){
-    const grf = await logoToGRF(130, 78);
+    const grf = await logoToGRF(130, 112); // ratio 1308:1126
     if(grf){
-      logoZpl = `^FO${W/2-65},${CX-39}^GFA,${grf.totalBytes*2},${grf.totalBytes*2},${grf.bytesPerRow*2},${grf.hex}^FS`;
+      logoZpl = `^FO${W/2-65},${CX-56}^GFA,${grf.totalBytes*2},${grf.totalBytes*2},${grf.bytesPerRow*2},${grf.hex}^FS`;
     } else {
       logoZpl = `^FO${W/2-60},${CX-26}^GB120,52,52^FS\n^FO${W/2-52},${CX-20}^FR^A0N,40,40^FD${logoTxt}^FS`;
     }
@@ -921,7 +921,7 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
   ctx.restore();
 
   // ══ COL CENTRAL — logo + titulo centrados verticalmente en mitad superior ══
-  const logoW = f(90), logoH = f(52);
+  const logoW = f(90), logoH = f(77); // ratio 1308:1126 = 1.162
   // Zona superior: desde top hasta el divider (H*0.55)
   // Centrar logo+titulo+subtitulo en esa zona
   const zoneTop = f(10);
@@ -1104,7 +1104,7 @@ async function guardarEdit(id){
   };
   // Recalcular ZPL con datos actualizados
   const e = todas.find(x=>x.id===id);
-  if(e){ updates.zpl = await buildZPL({...e,...updates}); }
+  // ZPL se regenera al imprimir, no se guarda en edición
   try {
     await window.$upd(window.$doc(id), updates);
     toast('Cambios guardados ✓','ok');
@@ -1304,44 +1304,23 @@ function abrirModal(id){
   qtyIn.type='number'; qtyIn.id='print-qty'; qtyIn.value='1'; qtyIn.min='1'; qtyIn.max='500';
   qtyRow.appendChild(qtyIn); body.appendChild(qtyRow);
 
-  // Mode buttons
-  const modeRow = document.createElement('div');
-  modeRow.className='print-mode-row';
-  const btnHtml = document.createElement('button');
-  btnHtml.className='mode-btn active'; btnHtml.id='mode-html';
-  btnHtml.textContent='🖨️ Imprimir'; btnHtml.onclick=()=>setPrintMode('html');
-  const btnPdf = document.createElement('button');
-  btnPdf.className='mode-btn'; btnPdf.id='mode-pdf';
-  btnPdf.textContent='📊 PPTX'; btnPdf.onclick=()=>setPrintMode('pdf');
-  const btnZpl = document.createElement('button');
-  btnZpl.className='mode-btn'; btnZpl.id='mode-zpl';
-  btnZpl.textContent='📋 ZPL'; btnZpl.onclick=()=>setPrintMode('zpl');
-  modeRow.appendChild(btnHtml); modeRow.appendChild(btnPdf); modeRow.appendChild(btnZpl);
-  body.appendChild(modeRow);
-
-  // Action row
+  // Botones de acción
   const actRow = document.createElement('div');
-  actRow.style.cssText='display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;';
-  const btnEjec = document.createElement('button');
-  btnEjec.className='btn btn-dark'; btnEjec.style.cssText='flex:1;justify-content:center;';
-  btnEjec.textContent='Ejecutar'; btnEjec.onclick=()=>ejecutarImpresion(id);
-  const btnCopyZpl = document.createElement('button');
-  btnCopyZpl.className='btn btn-outline'; btnCopyZpl.textContent='Copiar ZPL';
-  btnCopyZpl.onclick=()=>copyZPLcard(id);
-  actRow.appendChild(btnEjec); actRow.appendChild(btnCopyZpl);
-  body.appendChild(actRow);
+  actRow.style.cssText='display:flex;gap:10px;margin-top:4px;';
 
-  // ZPL preview
-  const zplBox = document.createElement('div');
-  zplBox.className='zpl-box';
-  const zplHdr = document.createElement('div');
-  zplHdr.className='zpl-hdr';
-  zplHdr.innerHTML='<span class="zpl-lbl">ZPL Preview</span>';
-  const zplPre = document.createElement('pre');
-  zplPre.style.cssText='font-size:10px;color:#64b5f6;white-space:pre-wrap;max-height:130px;overflow-y:auto;';
-  buildZPL(e).then(zpl=>{ zplPre.textContent=zpl; });
-  zplBox.appendChild(zplHdr); zplBox.appendChild(zplPre);
-  body.appendChild(zplBox);
+  const btnImprimir = document.createElement('button');
+  btnImprimir.className='btn btn-dark'; btnImprimir.style.cssText='flex:1;justify-content:center;font-size:15px;padding:12px;';
+  btnImprimir.innerHTML='🖨️ Imprimir';
+  btnImprimir.onclick=()=>{ cerrarModal(); imprimirBrowser(e, Math.max(1,parseInt(document.getElementById('print-qty').value)||1)); };
+
+  const btnPptx = document.createElement('button');
+  btnPptx.className='btn btn-outline'; btnPptx.style.cssText='flex:1;justify-content:center;';
+  btnPptx.innerHTML='📊 PPTX';
+  btnPptx.onclick=()=>{ cerrarModal(); exportarPDF(e, Math.max(1,parseInt(document.getElementById('print-qty').value)||1)); };
+
+  actRow.appendChild(btnImprimir);
+  actRow.appendChild(btnPptx);
+  body.appendChild(actRow);
 
   document.getElementById('modal-ov').classList.add('open');
 }
