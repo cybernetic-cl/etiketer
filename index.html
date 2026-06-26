@@ -312,7 +312,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   <button class="tab-btn active" id="tab-crear"  onclick="showTab('crear')">+ Crear Etiqueta</button>
   <button class="tab-btn"        id="tab-buscar" onclick="showTab('buscar')">🔍 Buscar / Imprimir</button>
   <div class="spacer"></div>
-  <div class="fb-status" style="margin-right:16px;">
+  <div class="fb-status" style="margin-right:16px;cursor:pointer;" onclick="qzInit()" title="Click para reconectar QZ Tray">
     <div class="fb-dot" id="qz-dot"></div>
     <span id="qz-label">QZ Tray</span>
   </div>
@@ -1061,32 +1061,49 @@ let qzPrinterName = null;
 
 async function qzInit(){
   try {
-    if(!window.qz){ console.warn('QZ Tray no disponible'); return; }
+    if(typeof qz === 'undefined'){
+      console.warn('qz-tray.js no cargó');
+      return;
+    }
 
-    // Silenciar logs de QZ
+    // QZ 2.x — configurar promesas y seguridad
     qz.api.setPromiseType(fn => new Promise(fn));
-    qz.security.setCertificatePromise(() => Promise.resolve(''));
-    qz.security.setSignatureAlgorithm('SHA512');
-    qz.security.setSignaturePromise(() => () => Promise.resolve(''));
 
-    await qz.websocket.connect({ retries: 1, delay: 0.5 });
-    qzConnected = true;
-    document.getElementById('qz-dot').className   = 'fb-dot ok';
+    // Para uso local/interno sin certificado de pago:
+    // QZ Tray permite conexión sin firmar desde localhost y sitios en su lista de confianza.
+    // El usuario debe agregar el sitio en QZ Tray → Site Manager → Allow unsigned.
+    qz.security.setCertificatePromise((_resolve, _reject) => {
+      _resolve(''); // sin certificado — requiere "Allow unsigned" en QZ Tray
+    });
+    qz.security.setSignaturePromise(_toSign => {
+      return (_resolve, _reject) => _resolve(''); // sin firma
+    });
+
+    // Conectar con reintentos
+    if(qz.websocket.isActive()){
+      qzConnected = true;
+    } else {
+      await qz.websocket.connect({ retries: 3, delay: 1 });
+      qzConnected = true;
+    }
+
+    document.getElementById('qz-dot').className    = 'fb-dot ok';
     document.getElementById('qz-label').textContent = 'QZ OK';
 
-    // Buscar XPrinter automáticamente
-    const printers = await qz.printers.find('XPrinter');
-    if(printers && printers.length > 0){
-      qzPrinterName = printers[0];
-    } else {
-      // Tomar impresora por defecto
+    // Buscar XPrinter (acepta nombre parcial)
+    try {
+      const found = await qz.printers.find('XPrinter');
+      qzPrinterName = Array.isArray(found) ? found[0] : found;
+    } catch(_){
       qzPrinterName = await qz.printers.getDefault();
     }
-    console.log('Impresora QZ:', qzPrinterName);
+    console.log('QZ impresora:', qzPrinterName);
+
   } catch(err){
-    document.getElementById('qz-dot').className   = 'fb-dot err';
+    qzConnected = false;
+    document.getElementById('qz-dot').className    = 'fb-dot err';
     document.getElementById('qz-label').textContent = 'QZ sin conectar';
-    console.warn('QZ Tray no disponible:', err.message||err);
+    console.warn('QZ error:', err.message||err);
   }
 }
 
@@ -1134,6 +1151,8 @@ async function imprimirXPrinter(e, qty){
       orientation: 'landscape',
       colorType:   'grayscale',
       copies:      qty,
+      density:     300,
+      interpolation: 'nearest-neighbor',
     });
 
     const data = [{
@@ -1144,10 +1163,18 @@ async function imprimirXPrinter(e, qty){
     }];
 
     await qz.print(config, data);
-    toast('Imprimiendo '+qty+' etiqueta'+(qty>1?'s':'')+' en '+qzPrinterName,'ok');
+    cerrarModal();
+    toast('Imprimiendo '+qty+' etiqueta'+(qty>1?'s':'')+' en "'+qzPrinterName+'"','ok');
   } catch(err){
-    toast('Error al imprimir: '+(err.message||err),'err');
-    console.error(err);
+    // Si falla, mostrar selector de impresora
+    const printers = await qz.printers.find();
+    const lista = Array.isArray(printers) ? printers : [printers];
+    const sel = prompt('Impresora no encontrada. Escribe el nombre exacto:\n\n'+lista.join('\n'), lista[0]||'');
+    if(sel){
+      qzPrinterName = sel;
+      toast('Impresora cambiada a: '+sel+'. Intenta de nuevo.','ok');
+    }
+    console.error('QZ print error:', err);
   }
 }
 
