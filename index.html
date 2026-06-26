@@ -6,6 +6,8 @@
 <title>Etiketer — Cybernetic SpA</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=Bebas+Neue&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root {
   --bg:      #eef0f4;
@@ -981,7 +983,7 @@ function abrirModal(id){
   modeRow.className = 'print-mode-row';
   const btnHtml = document.createElement('button');
   btnHtml.className='mode-btn active'; btnHtml.id='mode-html';
-  btnHtml.textContent='Imprimir HTML'; btnHtml.onclick=()=>setPrintMode('html');
+  btnHtml.textContent='Exportar PDF'; btnHtml.onclick=()=>setPrintMode('html');
   const btnZpl = document.createElement('button');
   btnZpl.className='mode-btn'; btnZpl.id='mode-zpl';
   btnZpl.textContent='Enviar ZPL'; btnZpl.onclick=()=>setPrintMode('zpl');
@@ -1026,44 +1028,67 @@ function ejecutarImpresion(id){
   const e   = todas.find(x=>x.id===id); if(!e) return;
   const qty = Math.max(1, parseInt(document.getElementById('print-qty').value)||1);
   if(printMode === 'zpl'){
-    // Genera N copias ZPL concatenadas
     const zpl = buildZPL(e);
     const sep = '\n';
     const multi = Array(qty).fill(zpl).join(sep);
-    navigator.clipboard.writeText(multi).then(()=>toast(`ZPL x${qty} copiado ✓`,'ok'));
+    navigator.clipboard.writeText(multi).then(()=>toast('ZPL x'+qty+' copiado','ok'));
   } else {
-    // Imprime HTML con N copias
-    imprimirHTML(e, qty);
+    exportarPDF(e, qty);
   }
 }
 
 function cerrarModal(){ document.getElementById('modal-ov').classList.remove('open'); }
 
-function imprimirHTML(e, qty){
-  const pa = document.getElementById('print-area');
-  pa.style.display = 'flex';
-  pa.style.flexWrap = 'wrap';
-  pa.style.gap = '4mm';
-  // Generar N copias con IDs únicos
-  let html = '';
+async function exportarPDF(e, qty){
+  toast('Generando PDF...','ok');
+
+  // Crear contenedor oculto fuera de pantalla
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;left:-9999px;top:0;display:flex;flex-direction:column;gap:0;background:#fff;';
+  document.body.appendChild(wrap);
+
+  // Renderizar N etiquetas
   for(let i=0; i<qty; i++){
-    html += `<div class="lp" style="page-break-inside:avoid;">${labelHTML(e,'pr'+i)}</div>`;
+    const div = document.createElement('div');
+    div.className = 'lp';
+    // Reset transform para que salga a tamaño real
+    div.style.cssText = 'width:567px;height:378px;transform:none;flex-shrink:0;';
+    div.innerHTML = labelHTML(e, 'pdf'+i);
+    wrap.appendChild(div);
   }
-  pa.innerHTML = html;
-  // Dibujar barcodes en todas las copias
-  let drawn = 0;
-  const tryDraw = () => {
-    for(let i=0; i<qty; i++) drawBC(e.ean13, 'bc-pr'+i);
-    drawn++;
-    if(drawn < 2) setTimeout(tryDraw, 150);
-    else setTimeout(()=>{ window.print(); pa.style.display='none'; }, 300);
-  };
-  setTimeout(tryDraw, 100);
+
+  // Esperar fuentes + dibujar barcodes
+  await new Promise(r => setTimeout(r, 200));
+  for(let i=0; i<qty; i++) drawBC(e.ean13, 'bc-pdf'+i);
+  await new Promise(r => setTimeout(r, 300));
+
+  // PDF: 150mm × 100mm landscape
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation:'landscape', unit:'mm', format:[150, 100] });
+
+  const labels = wrap.querySelectorAll('.lp');
+  for(let i=0; i<labels.length; i++){
+    if(i > 0) pdf.addPage([150, 100], 'landscape');
+    const canvas = await html2canvas(labels[i], {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    });
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(imgData, 'JPEG', 0, 0, 150, 100);
+  }
+
+  document.body.removeChild(wrap);
+
+  const nombre = (e.titulo_completo||e.titulo||'etiqueta').replace(/[^a-z0-9]/gi,'-').toLowerCase();
+  pdf.save(nombre + (qty>1 ? '-x'+qty : '') + '.pdf');
+  toast('PDF descargado ✓','ok');
 }
 
 function imprimir(id){
   const e=todas.find(x=>x.id===id); if(!e) return;
-  imprimirHTML(e, 1);
+  exportarPDF(e, 1);
 }
 
 // ══ EDITAR ══
