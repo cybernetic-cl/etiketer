@@ -997,16 +997,21 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
 
   // Footer — auto-reduce font size to fit full text
   if(e.footer){
-    ctx.fillStyle = '#555';
+    ctx.save();
+    ctx.fillStyle = '#444';
     ctx.textAlign = 'center';
-    const maxW = W - COL_L - COL_R - f(12);
-    let fSize = f(9);
-    ctx.font = fSize+'px "DM Sans",Arial,sans-serif';
-    while(ctx.measureText(e.footer).width > maxW && fSize > f(5)){
-      fSize -= S * 0.5;
-      ctx.font = fSize+'px "DM Sans",Arial,sans-serif';
+    ctx.textBaseline = 'bottom'; // ancla texto desde abajo — no se corta
+    const maxW = W - COL_L - COL_R - f(16);
+    // Empezar con fuente legible y reducir solo si no cabe
+    let fSize = f(9.5);
+    ctx.font = fSize + 'px "DM Sans",Arial,sans-serif';
+    while(ctx.measureText(e.footer).width > maxW && fSize > f(6)){
+      fSize -= S * 0.3;
+      ctx.font = fSize + 'px "DM Sans",Arial,sans-serif';
     }
-    ctx.fillText(e.footer, CX, H - f(7));
+    // Posicionar a f(18) del borde — suficiente margen para que no se corte
+    ctx.fillText(e.footer, CX, H - f(8));
+    ctx.restore();
   }
 
   // ══ COL DERECHA ══
