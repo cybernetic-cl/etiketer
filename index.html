@@ -1045,75 +1045,63 @@ function ejecutarImpresion(id){
 function cerrarModal(){ document.getElementById('modal-ov').classList.remove('open'); }
 
 
-function imprimirBrowser(e, qty){
-  // Construir página de impresión con la etiqueta a escala real
-  // @page fuerza 150x100mm landscape y 0 márgenes
-  const printWin = window.open('', '_blank', 'width=900,height=700');
-  if(!printWin){ toast('Permite ventanas emergentes para imprimir','err'); return; }
+async function imprimirBrowser(e, qty){
+  toast('Renderizando a 300 DPI...', 'ok');
+  await new Promise(r => setTimeout(r, 80));
 
-  // Obtener todas las fuentes del documento
-  const fonts = Array.from(document.styleSheets)
-    .flatMap(s => { try { return Array.from(s.cssRules); } catch(_){ return []; } })
-    .filter(r => r instanceof CSSFontFaceRule)
-    .map(r => r.cssText).join('\n');
+  // 300 DPI: 150mm=1772px, 100mm=1181px
+  const CW = 1772, CH = 1181;
 
-  // Construir HTML de la etiqueta repitiendo qty veces
-  let labelsHTML = '';
+  // Generar todas las páginas como imágenes PNG de alta resolución
+  const paginas = [];
   for(let i=0; i<qty; i++){
-    labelsHTML += '<div class="lp page-label">' + labelHTML(e, 'pr'+i) + '</div>';
+    const cv = document.createElement('canvas');
+    cv.width = CW; cv.height = CH;
+    const ctx = cv.getContext('2d');
+    await dibujarEtiquetaCanvas(ctx, e, CW, CH);
+    paginas.push(cv.toDataURL('image/png'));
   }
 
-  // CSS completo heredado del documento principal
-  const allCSS = Array.from(document.styleSheets)
-    .flatMap(s => { try { return Array.from(s.cssRules).map(r=>r.cssText); } catch(_){ return []; } })
-    .join('\n');
+  // Abrir ventana de impresión con imágenes a 150x100mm
+  const printWin = window.open('', '_blank', 'width=900,height=700');
+  if(!printWin){ toast('Permite ventanas emergentes','err'); return; }
+
+  const imgsHTML = paginas.map((src, i) =>
+    '<div class="pg"><img src="'+src+'" class="lbl-img">'+(i<paginas.length-1?'':'')+'</div>'
+  ).join('');
 
   printWin.document.write(`<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<title>Etiqueta</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Bebas+Neue&display=swap" rel="stylesheet">
+<html><head><meta charset="UTF-8"><title>Etiqueta — ${(e.titulo_completo||e.titulo||'').toUpperCase()}</title>
 <style>
-${allCSS}
-@page { size: 150mm 100mm landscape; margin: 0; }
-* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-html, body { margin:0; padding:0; background:#fff; }
-.page-label {
-  width: 150mm !important;
-  height: 100mm !important;
-  transform: none !important;
-  box-shadow: none !important;
-  border: 0.3mm solid #ccc !important;
-  page-break-after: always;
-  page-break-inside: avoid;
-  overflow: hidden;
-  font-family: 'DM Sans', Arial, sans-serif !important;
-}
-.page-label:last-child { page-break-after: avoid; }
+  @page { size: 150mm 100mm landscape; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  html, body { background: #fff; }
+  .pg {
+    width: 150mm; height: 100mm;
+    display: flex; align-items: center; justify-content: center;
+    page-break-after: always; page-break-inside: avoid;
+    overflow: hidden;
+  }
+  .pg:last-child { page-break-after: avoid; }
+  .lbl-img {
+    width: 150mm; height: 100mm;
+    display: block; image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+  @media screen {
+    body { background: #888; padding: 20px; display:flex; flex-direction:column; gap:20px; align-items:center; }
+    .pg { background:#fff; box-shadow:0 2px 16px rgba(0,0,0,.3); }
+  }
 </style>
 </head><body>
-${labelsHTML}
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+${imgsHTML}
 <script>
-window.addEventListener('load', function(){
-  // Dibujar barcodes
-  for(let i=0; i<${qty}; i++){
-    const el = document.getElementById('bc-pr'+i);
-    if(el && '${e.ean13}'.length===13){
-      try {
-        JsBarcode(el, '${e.ean13}', {
-          format:'EAN13', width:1.5, height:55,
-          displayValue:true, fontSize:9, margin:3,
-          background:'#ffffff', lineColor:'#000', textMargin:2,
-        });
-        el.style.width='112px'; el.style.display='block';
-      } catch(_){}
-    }
-  }
-  // Esperar fuentes y luego imprimir
-  document.fonts.ready.then(function(){
-    setTimeout(function(){ window.print(); setTimeout(function(){ window.close(); }, 500); }, 600);
-  });
-});
+  // Auto-imprimir cuando cargan todas las imágenes
+  let loaded = 0;
+  const imgs = document.querySelectorAll('img');
+  function tryPrint(){ loaded++; if(loaded >= imgs.length){ setTimeout(()=>{ window.print(); },400); } }
+  imgs.forEach(img => { if(img.complete) tryPrint(); else { img.onload=tryPrint; img.onerror=tryPrint; } });
+  if(imgs.length === 0) setTimeout(()=>window.print(), 400);
 <\/script>
 </body></html>`);
   printWin.document.close();
