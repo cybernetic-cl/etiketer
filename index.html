@@ -1165,28 +1165,62 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
   ctx.moveTo(R,0); ctx.lineTo(R,H);
   ctx.stroke();
 
-  // ── COL IZQ rotada ──
+  // ── COL IZQ — dos bloques de texto rotados -90° ──
+  // Traducimos al centro de la columna izquierda y rotamos
+  // Después de rotar: eje X corre de arriba a abajo de la etiqueta,
+  // eje Y corre de derecha a izquierda de la columna
   ctx.save();
   ctx.translate(L/2, H/2);
   ctx.rotate(-Math.PI/2);
-  const sf = f(9), sfS = f(7);
-  const segs = [
-    [true,  'Manipulacion y almacenaje:'],
-    [false, 'Utilice siempre EPP adecuado.'],
-    [false, 'Almacene en areas secas y ventiladas.'],
-    [false, 'Evite calor y luz solar.'],
-    [true,  '  Primeros auxilios:'],
-    [false, 'CITUC: 02 2635 3800'],
-    [false, 'Atencion 24hrs todos los dias.'],
-    [false, '  Cybernetic SpA, Providencia, Santiago.'],
-  ];
-  let tx = -(H/2) + f(8);
-  segs.forEach(([bold, text]) => {
-    ctx.font = (bold?'bold ':'')+( bold?sf:sfS)+'px "DM Sans",Arial,sans-serif';
-    ctx.fillStyle = bold ? '#111' : '#444';
-    ctx.fillText(text, tx, -(L/2)+f(14));
-    tx += ctx.measureText(text).width + f(bold?8:4);
-  });
+  // Ahora el "ancho" disponible es H (largo etiqueta) y el "alto" es L (ancho columna)
+  // Dividimos en dos bloques: izq (0..H/2) y der (H/2..H)
+  const sfT = f(9),  sfB = f(7.5); // título / cuerpo
+  const lineH = f(11); // interlineado
+  const colY  = -(L/2) + f(10); // Y base (arriba de la col rotada)
+
+  const bloqueIzq = {
+    titulo: 'Manipulacion y almacenaje:',
+    lineas: [
+      'Utilice siempre EPP adecuado.',
+      'Almacene en areas secas, frescas',
+      'y ventiladas. Evite calor y sol.',
+    ]
+  };
+  const bloqueDer = {
+    titulo: 'Primeros auxilios:',
+    lineas: [
+      'En caso de intoxicacion llame al',
+      'CITUC: 02 2635 3800',
+      'Atencion 24hrs todos los dias.',
+    ]
+  };
+  const bloquePie = {
+    titulo: '',
+    lineas: ['Distribuido por Cybernetic SpA, Providencia, Santiago.']
+  };
+
+  // Dibuja un bloque empezando en startX
+  function drawBloque(bloque, startX){
+    let y = colY;
+    if(bloque.titulo){
+      ctx.font = 'bold '+sfT+'px "DM Sans",Arial,sans-serif';
+      ctx.fillStyle = '#111';
+      ctx.fillText(bloque.titulo, startX, y);
+      y += lineH * 1.3;
+    }
+    ctx.font = sfB+'px "DM Sans",Arial,sans-serif';
+    ctx.fillStyle = '#333';
+    bloque.lineas.forEach(l => { ctx.fillText(l, startX, y); y += lineH; });
+  }
+
+  const halfH = H / 2;
+  drawBloque(bloqueIzq, -(halfH) + f(8));
+  drawBloque(bloqueDer, -(halfH) + f(8) + halfH * 0.52);
+  // Pie de página (distribuidor) en la parte baja
+  ctx.font = 'italic '+f(7)+'px "DM Sans",Arial,sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.fillText(bloquePie.lineas[0], -(halfH) + f(8), colY + f(60));
+
   ctx.restore();
 
   // ── COL CENTRAL ──
@@ -1252,6 +1286,7 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
 
   // ── COL DER ──
   const rx = R+f(8);
+  ctx.save();
   ctx.textAlign='left';
   const info = [
     e.dosis?['Dosis: ',e.dosis]:null,
@@ -1259,15 +1294,19 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
     fv?['Venc: ',fv]:null,
   ].filter(Boolean);
 
+  // Calcular Y de inicio: dejar espacio para barcode abajo
+  const infoStartY = H - f(55) - f(10) - info.length * f(17) - f(10);
   info.forEach(([lbl,val],i)=>{
-    const y = H-f(130)+i*f(17);
-    ctx.fillStyle='#111';
-    ctx.font='bold '+f(9)+'px "DM Sans",Arial,sans-serif';
+    const y = infoStartY + i*f(17);
+    ctx.fillStyle = '#111';
+    ctx.font = 'bold '+f(9)+'px "DM Sans",Arial,sans-serif';
     ctx.fillText(lbl, rx, y);
-    ctx.fillStyle='#333';
-    ctx.font=f(9)+'px "DM Sans",Arial,sans-serif';
-    ctx.fillText(val, rx+ctx.measureText(lbl).width, y);
+    const lblW = ctx.measureText(lbl).width;
+    ctx.fillStyle = '#333';
+    ctx.font = f(9)+'px "DM Sans",Arial,sans-serif';
+    ctx.fillText(val, rx+lblW, y);
   });
+  ctx.restore();
 
   // Barcode
   if(e.ean13 && e.ean13.length===13 && /^[0-9]+$/.test(e.ean13)){
