@@ -128,36 +128,39 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 /* COLUMNA IZQUIERDA — texto en vertical */
 .lp-left {
   border-right: 1.5px solid #111;
-  display: flex; flex-direction: column; justify-content: space-between;
-  padding: 8px 6px;
   position: relative;
   overflow: hidden;
 }
 .lp-left-inner {
-  /* Rotar todo el bloque de texto 90° para que lea de abajo hacia arriba */
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: space-around;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  transform: rotate(180deg);
-  padding: 8px 4px;
-  gap: 0;
+  padding: 4px 2px;
+  gap: 2px;
 }
 .lp-block {
-  display: flex; flex-direction: column;
-  gap: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  /* Rotar cada bloque individualmente — html2canvas compatible */
+  transform: rotate(-90deg);
+  transform-origin: center center;
+  white-space: nowrap;
 }
 .lp-btitle {
   font-size: 6.5px; font-weight: 700; color: #111;
   text-transform: uppercase; letter-spacing: .5px;
   white-space: nowrap;
+  display: block;
 }
 .lp-btext {
   font-size: 6px; color: #333; line-height: 1.5;
   white-space: nowrap;
+  display: block;
 }
 
 /* COLUMNA CENTRAL */
@@ -250,6 +253,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .print-qty-row { display: flex; align-items: center; gap: 10px; background: var(--surf2); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; }
 .print-qty-row label { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
 .edit-inp { width:100%; background:var(--surf2); border:1.5px solid var(--border); border-radius:7px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; padding:8px 12px; outline:none; transition: border-color .15s; }
+.edit-inp.upper { text-transform: uppercase; }
 .edit-inp:focus { border-color:var(--indigo); background:#fff; }
 .print-qty-row input { width: 70px; text-align: center; background: #fff; border: 1.5px solid var(--border); border-radius: 7px; font-size: 15px; font-weight: 700; padding: 6px 8px; outline: none; }
 .print-mode-row { display: flex; gap: 8px; margin-bottom: 14px; }
@@ -331,7 +335,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 
       <div class="field">
         <label>Título</label>
-        <input id="f-titulo" type="text" placeholder="CAFEÍNA ANHIDRA" oninput="renderPreview()">
+        <input id="f-titulo" type="text" placeholder="CAFEÍNA ANHIDRA" class="upper" oninput="renderPreview()">
       </div>
 
       <div class="field">
@@ -547,7 +551,7 @@ function getEAN(){ const v=(document.getElementById('f-ean').value||'').trim(); 
 function datos(){
   return {
     logo:      document.getElementById('f-logo').value    ||'dmp',
-    titulo:    document.getElementById('f-titulo').value  ||'PRODUCTO',
+    titulo:    (document.getElementById('f-titulo').value||'PRODUCTO').toUpperCase(),
     subtitulo: document.getElementById('f-subtitulo').value||'',
     contenidos: (()=>{
       const custom = document.getElementById('f-cont-custom').value.trim();
@@ -1041,49 +1045,200 @@ function cerrarModal(){ document.getElementById('modal-ov').classList.remove('op
 
 async function exportarPDF(e, qty){
   toast('Generando PDF...','ok');
+  await new Promise(r => setTimeout(r, 50));
 
-  // Crear contenedor oculto fuera de pantalla
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'position:fixed;left:-9999px;top:0;display:flex;flex-direction:column;gap:0;background:#fff;';
-  document.body.appendChild(wrap);
-
-  // Renderizar N etiquetas
-  for(let i=0; i<qty; i++){
-    const div = document.createElement('div');
-    div.className = 'lp';
-    // Reset transform para que salga a tamaño real
-    div.style.cssText = 'width:567px;height:378px;transform:none;flex-shrink:0;';
-    div.innerHTML = labelHTML(e, 'pdf'+i);
-    wrap.appendChild(div);
-  }
-
-  // Esperar fuentes + dibujar barcodes
-  await new Promise(r => setTimeout(r, 200));
-  for(let i=0; i<qty; i++) drawBC(e.ean13, 'bc-pdf'+i);
-  await new Promise(r => setTimeout(r, 300));
-
-  // PDF: 150mm × 100mm landscape
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ orientation:'landscape', unit:'mm', format:[150, 100] });
+  // 150mm × 100mm landscape @ 96dpi equiv: 1px = 0.2646mm → 150mm = 567px, 100mm = 378px
+  const PW = 567, PH = 378; // px a 96dpi
+  const pdf = new jsPDF({ orientation:'landscape', unit:'mm', format:[150,100] });
 
-  const labels = wrap.querySelectorAll('.lp');
-  for(let i=0; i<labels.length; i++){
-    if(i > 0) pdf.addPage([150, 100], 'landscape');
-    const canvas = await html2canvas(labels[i], {
-      scale: 3,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-    });
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-    pdf.addImage(imgData, 'JPEG', 0, 0, 150, 100);
+  for(let pg=0; pg<qty; pg++){
+    if(pg > 0) pdf.addPage([150,100],'landscape');
+
+    const cv = document.createElement('canvas');
+    cv.width  = PW * 2; // x2 para mayor resolución
+    cv.height = PH * 2;
+    const ctx = cv.getContext('2d');
+    ctx.scale(2, 2);
+
+    await dibujarEtiquetaCanvas(ctx, e, PW, PH);
+
+    const img = cv.toDataURL('image/jpeg', 0.97);
+    pdf.addImage(img, 'JPEG', 0, 0, 150, 100);
   }
 
-  document.body.removeChild(wrap);
-
-  const nombre = (e.titulo_completo||e.titulo||'etiqueta').replace(/[^a-z0-9]/gi,'-').toLowerCase();
+  const nombre = (e.titulo_completo||e.titulo||'etiqueta').replace(/[^a-z0-9áéíóú]/gi,'-').toLowerCase();
   pdf.save(nombre + (qty>1 ? '-x'+qty : '') + '.pdf');
   toast('PDF descargado ✓','ok');
+}
+
+async function dibujarEtiquetaCanvas(ctx, e, W, H){
+  // Esperar fuentes DM Sans y Bebas Neue
+  await document.fonts.ready;
+
+  const fv   = (() => { const rv = resolveVenc(e); return rv ? (([y,m])=>m+'/'+y.slice(2))(rv.split('-')) : ''; })();
+  const logo = LOGO_TEXT[(e.logo||'dmp').toLowerCase()] || 'DMP';
+
+  // Columnas
+  const L = 118; // sep izq
+  const R = W - 130; // sep der
+
+  // ── Fondo blanco ──
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Borde ──
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(1, 1, W-2, H-2);
+
+  // ── Líneas separadoras ──
+  ctx.beginPath();
+  ctx.moveTo(L, 0); ctx.lineTo(L, H);
+  ctx.moveTo(R, 0); ctx.lineTo(R, H);
+  ctx.stroke();
+
+  // ══ COLUMNA IZQUIERDA — texto rotado -90° ══
+  ctx.save();
+  ctx.translate(L/2, H/2);
+  ctx.rotate(-Math.PI/2);
+
+  const bloques = [
+    { titulo: 'Manipulacion y almacenaje:', lineas: [
+        'Utilice siempre EPP adecuado.',
+        'Almacene en areas secas, frescas',
+        'y ventiladas. Evite calor y sol.',
+    ]},
+    { titulo: 'Primeros auxilios:', lineas: [
+        'En caso de intoxicacion llame al',
+        'CITUC: 02 2635 3800',
+        'Atencion 24hrs todos los dias.',
+    ]},
+    { titulo: 'Distribuido por Cybernetic SpA, Providencia, Santiago.', lineas:[] },
+  ];
+
+  // Dibuja centrado en el eje rotado (altura original = L, ancho = H)
+  const totalH = H; // ancho disponible en el eje rotado
+  const colH   = L; // alto disponible
+  let x = -totalH/2 + 10;
+  bloques.forEach(b => {
+    ctx.fillStyle = '#111';
+    ctx.font = 'bold 7px "DM Sans", Arial, sans-serif';
+    ctx.fillText(b.titulo, x, -colH/2 + 10);
+    x += ctx.measureText(b.titulo).width + 8;
+    ctx.fillStyle = '#333';
+    ctx.font = '6px "DM Sans", Arial, sans-serif';
+    b.lineas.forEach(l => {
+      ctx.fillText(l, x, -colH/2 + 10);
+      x += ctx.measureText(l).width + 4;
+    });
+    x += 10;
+  });
+
+  ctx.restore();
+
+  // ══ COLUMNA CENTRAL ══
+  const cx = (L + R) / 2;
+
+  // Logo imagen o texto
+  const logoKey = (e.logo||'dmp').toLowerCase();
+  const logoSrc = LOGOS[logoKey];
+  if(logoSrc){
+    await new Promise(res => {
+      const img = new Image();
+      img.onload = () => {
+        const lw = 80, lh = 45;
+        ctx.drawImage(img, cx - lw/2, 14, lw, lh);
+        res();
+      };
+      img.onerror = res;
+      img.src = logoSrc;
+    });
+  } else {
+    ctx.fillStyle = '#111';
+    ctx.fillRect(cx-50, 14, 100, 38);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 26px "Bebas Neue", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(logo, cx, 42);
+  }
+
+  // Título
+  ctx.fillStyle = '#111';
+  ctx.textAlign = 'center';
+  const tSize = e.titulo.length > 18 ? 20 : e.titulo.length > 12 ? 24 : 28;
+  ctx.font = 'bold '+tSize+'px "Bebas Neue", Arial, sans-serif';
+  ctx.fillText((e.titulo||'').toUpperCase(), cx, 80);
+
+  // Subtítulo
+  if(e.subtitulo){
+    ctx.fillStyle = '#555';
+    ctx.font = 'italic 10px "DM Sans", Arial, sans-serif';
+    ctx.fillText(e.subtitulo, cx, 96);
+  }
+
+  // Divider
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx, H/2 - 30); ctx.lineTo(cx, H/2 + 10);
+  ctx.stroke();
+
+  // Contenido neto
+  ctx.fillStyle = '#555';
+  ctx.font = '600 7px "DM Sans", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('CONTENIDO NETO', cx, H - 60);
+
+  ctx.fillStyle = '#111';
+  ctx.font = 'bold 22px "DM Sans", Arial, sans-serif';
+  ctx.fillText(e.contenido || '', cx, H - 38);
+
+  // Footer
+  if(e.footer){
+    ctx.fillStyle = '#888';
+    ctx.font = 'italic 5.5px "DM Sans", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(e.footer.substring(0,90), cx, H - 6);
+  }
+
+  // ══ COLUMNA DERECHA ══
+  const rx = R + 8;
+
+  // Info (dosis, origen, venc)
+  ctx.textAlign = 'left';
+  const infoLines = [
+    e.dosis ? 'Dosis: '+e.dosis   : '',
+    e.pais  ? 'Origen: '+e.pais   : '',
+    fv      ? 'Venc: '+fv         : '',
+  ].filter(Boolean);
+
+  infoLines.forEach((line, i) => {
+    const parts = line.split(': ');
+    let xOff = rx;
+    ctx.fillStyle = '#111';
+    ctx.font = 'bold 7px "DM Sans", Arial, sans-serif';
+    ctx.fillText(parts[0]+': ', xOff, H - 130 + i*14);
+    xOff += ctx.measureText(parts[0]+': ').width;
+    ctx.fillStyle = '#333';
+    ctx.font = '7px "DM Sans", Arial, sans-serif';
+    ctx.fillText(parts.slice(1).join(': '), xOff, H - 130 + i*14);
+  });
+
+  // Barcode EAN-13
+  if(e.ean13 && e.ean13.length === 13){
+    const bcCanvas = document.createElement('canvas');
+    try {
+      JsBarcode(bcCanvas, e.ean13, {
+        format:'EAN13', width:1.4, height:50,
+        displayValue:true, fontSize:8, margin:3,
+        background:'#ffffff', lineColor:'#000',
+      });
+      const bcW = W - R - 8;
+      const bcH = 60;
+      const bcY = H - bcH - 6;
+      ctx.drawImage(bcCanvas, R+4, bcY, bcW, bcH);
+    } catch(_){}
+  }
 }
 
 function imprimir(id){
@@ -1093,7 +1248,7 @@ function imprimir(id){
 
 // ══ EDITAR ══
 const EDIT_FIELDS = [
-  { id:'ed-titulo',    label:'Título',           type:'text',  key:'titulo'    },
+  { id:'ed-titulo',    label:'Título',           type:'text',  key:'titulo',    upper:true },
   { id:'ed-subtitulo', label:'Subtítulo',         type:'text',  key:'subtitulo' },
   { id:'ed-contenido', label:'Contenido Neto',    type:'text',  key:'contenido' },
   { id:'ed-venc',      label:'Fecha Vencimiento', type:'month', key:'venc'      },
@@ -1110,7 +1265,7 @@ function abrirEdit(id){
   const inp = (f) => `
     <div class="field">
       <label>${f.label}</label>
-      <input id="${f.id}" type="${f.type}" class="edit-inp">
+      <input id="${f.id}" type="${f.type}" class="edit-inp${f.upper?' upper':''}">
     </div>`;
   body.innerHTML = EDIT_FIELDS.map(inp).join('') + `
     <div style="display:flex;gap:8px;margin-top:18px;">
@@ -1130,7 +1285,7 @@ function cerrarEdit(){ document.getElementById('edit-ov').classList.remove('open
 
 async function guardarEdit(id){
   if(!window.$db){ toast('Firebase no conectado','err'); return; }
-  const titulo    = document.getElementById('ed-titulo').value.trim();
+  const titulo    = document.getElementById('ed-titulo').value.trim().toUpperCase();
   const contenido = document.getElementById('ed-contenido').value.trim();
   const updates = {
     titulo,
