@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Etiketer — Cybernetic SpA</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=Bebas+Neue&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Bebas+Neue&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+
+
 <style>
 :root {
   --bg:      #eef0f4;
@@ -38,7 +38,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 }
 .logo-badge {
   background: var(--accent); color: #fff; font-size: 10px;
-  padding: 2px 6px; border-radius: 4px; font-family: 'DM Mono', monospace;
+  padding: 2px 6px; border-radius: 4px; font-family: ;
   letter-spacing: 1px;
 }
 .tab-btn {
@@ -221,11 +221,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   font-size: 5.5px; color: #bbb; white-space: nowrap;
 }
 
-/* ── ZPL box ── */
-.zpl-box { background: #12141c; border-radius: var(--radius); padding: 14px; }
-.zpl-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.zpl-lbl { font-size: 11px; font-weight: 600; color: #5070a0; text-transform: uppercase; letter-spacing: .5px; font-family: 'DM Mono', monospace; }
-.zpl-box pre { font-family: 'DM Mono', monospace; font-size: 10px; color: #64b5f6; white-space: pre-wrap; word-break: break-all; max-height: 170px; overflow-y: auto; line-height: 1.6; }
+
 
 /* ── Búsqueda ── */
 .search-bar { display: flex; gap: 10px; margin-bottom: 20px; }
@@ -246,7 +242,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .ecard-titulo { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: .5px; margin-bottom: 1px; }
 .ecard-sub { font-size: 12px; color: var(--muted); margin-bottom: 9px; }
 .chips { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 11px; }
-.chip { background: var(--surf2); border: 1px solid var(--border); border-radius: 5px; font-size: 11px; color: var(--muted); padding: 2px 7px; font-family: 'DM Mono', monospace; }
+.chip { background: var(--surf2); border: 1px solid var(--border); border-radius: 5px; font-size: 11px; color: var(--muted); padding: 2px 7px; font-family: ; }
 .ecard-acts { display: flex; gap: 6px; flex-wrap: wrap; }
 .btn-delete { background: #fff0f0; color: var(--red); border: 1.5px solid #fecaca; }
 .btn-delete:hover { background: var(--red); color: #fff; border-color: var(--red); }
@@ -287,7 +283,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .loader { display: flex; justify-content: center; padding: 40px; }
 .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--indigo); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.ean-hint { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 4px; }
+.ean-hint { font-family: ; font-size: 11px; color: var(--muted); margin-top: 4px; }
 .divider-label { font-size: 10px; font-weight: 600; color: #bbb; text-transform: uppercase; letter-spacing: .5px; margin: 8px 0 4px; }
 
 /* ── Print ── */
@@ -378,8 +374,12 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       </div>
 
       <div class="field">
-        <label>Footer / Nota (opcional)</label>
-        <input id="f-footer" type="text" value="DMP es una marca de Cybernetic SpA, Providencia, Santiago de Chile. https://distribuidoramp.cl/" oninput="renderPreview()">
+        <label>Footer Línea 1</label>
+        <input id="f-footer" type="text" value="DMP es una marca de Cybernetic SpA, Providencia, Santiago de Chile." oninput="renderPreview()">
+      </div>
+      <div class="field">
+        <label>Footer Línea 2</label>
+        <input id="f-footer2" type="text" value="https://distribuidoramp.cl/" oninput="renderPreview()">
       </div>
 
       <button class="btn btn-green btn-full" onclick="guardar()">💾 Guardar en Firebase</button>
@@ -402,14 +402,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       </div>
     </div>
 
-    <div class="zpl-box">
-      <div class="zpl-hdr">
-        <span class="zpl-lbl">ZPL · 203 DPI · 1218 × 812 dots</span>
-
-      </div>
-      <pre id="zpl-out">^XA^XZ</pre>
     </div>
-  </div>
 </div>
 
 <!-- ══ BUSCAR ══ -->
@@ -566,7 +559,8 @@ function datos(){
     venc_years: parseInt(document.getElementById('f-venc-years').value||'1'),
     pais:      document.getElementById('f-pais').value    ||'Chile',
     dosis:     document.getElementById('f-dosis').value   ||'',
-    footer:    document.getElementById('f-footer').value  ||'DMP es una marca de Cybernetic SpA, Providencia, Santiago de Chile. https://distribuidoramp.cl/',
+    footer:    document.getElementById('f-footer').value  ||'DMP es una marca de Cybernetic SpA, Providencia, Santiago de Chile.',
+    footer2:   document.getElementById('f-footer2') ? document.getElementById('f-footer2').value : 'https://distribuidoramp.cl/',
     ean13:     getEAN(),
   };
 }
@@ -708,9 +702,7 @@ function renderPreview(){
   ctx.scale(2, 2); // retina
   dibujarEtiquetaCanvas(ctx, previewD, PW, PH);
 
-  Promise.all(d.contenidos.map(cont=>buildZPL({...d,contenido:cont}))).then(zpls=>{
-    document.getElementById('zpl-out').textContent = zpls.join('\n\n; ── siguiente etiqueta ──\n\n');
-  });
+
   const badge = document.getElementById('preview-count');
   if(badge) badge.textContent = d.contenidos.length > 1 ? d.contenidos.length+' variantes' : '';
 }
@@ -720,142 +712,7 @@ function renderPreview(){
 // PW=1218, LL=812
 // Col IZQ x=0..230, Col CTR x=230..900, Col DER x=900..1218
 
-// Convierte el logo PNG a datos GRF para ^GF
-async function logoToGRF(targetW, targetH){
-  const logoKey = 'dmp';
-  const src = LOGOS[logoKey];
-  if(!src) return null;
 
-  return new Promise(res => {
-    const img = new Image();
-    img.onload = () => {
-      // Dibujar en canvas temporal a blanco/negro
-      const cv = document.createElement('canvas');
-      cv.width = targetW; cv.height = targetH;
-      const ctx = cv.getContext('2d');
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0,0,targetW,targetH);
-      ctx.drawImage(img, 0, 0, targetW, targetH);
-
-      const px = ctx.getImageData(0,0,targetW,targetH).data;
-      // Convertir a bits: negro=1, blanco=0
-      // Cada fila: ceil(targetW/8) bytes → 2 hex chars cada byte
-      const bytesPerRow = Math.ceil(targetW / 8);
-      let hex = '';
-      for(let y=0; y<targetH; y++){
-        let rowHex = '';
-        for(let bx=0; bx<bytesPerRow; bx++){
-          let byte = 0;
-          for(let bit=0; bit<8; bit++){
-            const px_x = bx*8 + bit;
-            if(px_x < targetW){
-              const idx = (y*targetW + px_x)*4;
-              // Luminancia: si oscuro → bit=1 (imprime negro)
-              const lum = 0.299*px[idx] + 0.587*px[idx+1] + 0.114*px[idx+2];
-              if(lum < 128) byte |= (0x80 >> bit);
-            }
-          }
-          rowHex += byte.toString(16).padStart(2,'0').toUpperCase();
-        }
-        hex += rowHex;
-      }
-      const totalBytes = bytesPerRow * targetH;
-      res({ hex, totalBytes, bytesPerRow, w: targetW, h: targetH });
-    };
-    img.onerror = () => res(null);
-    img.src = src;
-  });
-}
-
-async function buildZPL(d){
-  // Impresora: rollo 10cm ancho x 15cm largo
-  // PW=812 (10cm @ 203dpi), LL=1218 (15cm @ 203dpi)
-  // La etiqueta sale VERTICAL (portrait). Para que el diseño
-  // quede horizontal al leerla, las 3 columnas se convierten en 3 BANDAS horizontales:
-  //   BANDA SUPERIOR  y=0..280     → Col derecha (info + barcode)
-  //   BANDA CENTRAL   y=280..950   → Col central (logo + titulo + contenido)
-  //   BANDA INFERIOR  y=950..1218  → Col izquierda (texto seguridad rotado)
-
-  const W = 812, H = 1218;
-  const SEP1 = 280, SEP2 = 950;
-  const CX = Math.round((SEP1 + SEP2) / 2);
-
-  const _rv = resolveVenc(d);
-  const fv  = _rv ? (([y,m]) => m+'/'+y.slice(2))(_rv.split('-')) : '';
-  const logoTxt = LOGO_TEXT[(d.logo||'dmp').toLowerCase()] || 'DMP';
-  const tSz = d.titulo.length > 18 ? 42 : d.titulo.length > 12 ? 50 : 58;
-
-  // Logo GRF si es DMP
-  let logoZpl = '';
-  if((d.logo||'dmp').toLowerCase() === 'dmp'){
-    const grf = await logoToGRF(130, 112); // ratio 1308:1126
-    if(grf){
-      logoZpl = `^FO${W/2-65},${CX-56}^GFA,${grf.totalBytes*2},${grf.totalBytes*2},${grf.bytesPerRow*2},${grf.hex}^FS`;
-    } else {
-      logoZpl = `^FO${W/2-60},${CX-26}^GB120,52,52^FS\n^FO${W/2-52},${CX-20}^FR^A0N,40,40^FD${logoTxt}^FS`;
-    }
-  } else {
-    logoZpl = `^FO${W/2-60},${CX-26}^GB120,52,52^FS\n^FO${W/2-52},${CX-20}^FR^A0N,40,40^FD${logoTxt}^FS`;
-  }
-
-  // Info columna derecha (banda superior)
-  const infoItems = [
-    d.dosis ? `Dosis: ${d.dosis}`   : '',
-    d.pais  ? `Origen: ${d.pais}`   : '',
-    fv      ? `Venc: ${fv}`         : '',
-  ].filter(Boolean);
-  const bcH = 100;
-  const bcY = SEP1 - bcH - 10;
-  const infoZpl = infoItems.map((line, i) =>
-    `^FO10,${10 + i * 24}^A0N,20,20^FD${line}^FS`
-  ).join('\n');
-
-  // Subtitulo
-  const subZpl = d.subtitulo
-    ? `^FO10,${CX-26+78+tSz+12}^A0N,22,22^FD${d.subtitulo}^FS` : '';
-
-  // Footer
-  const footerZpl = d.footer
-    ? `^FO10,${SEP2-26}^A0N,18,18^FD${d.footer.substring(0,72)}^FS` : '';
-
-  return `^XA
-^PW${W}
-^LL${H}
-^CI28
-^MMT
-
-; Separadores horizontales
-^FO0,${SEP1}^GB${W},2,2^FS
-^FO0,${SEP2}^GB${W},2,2^FS
-
-; ══ BANDA SUPERIOR — info + barcode ══
-${infoZpl}
-^FO10,${bcY}
-^BY2,3,${bcH}
-^BEN,${bcH},Y,N
-^FD${d.ean13}^FS
-
-; ══ BANDA CENTRAL — logo + titulo + contenido ══
-${logoZpl}
-^FO10,${CX-26+82}^A0N,${tSz},${tSz}^FD${d.titulo}^FS
-${subZpl}
-^FO${W/2},${CX+60}^GB2,60,2^FS
-^FO20,${SEP2-115}^A0N,18,18^FDCONTENIDO NETO^FS
-^FO10,${SEP2-93}^A0N,52,50^FD${d.contenido}^FS
-${footerZpl}
-
-; ══ BANDA INFERIOR — texto seguridad rotado ══
-^FO${W-20},${H-8}^A0R,20,20^FDManipulacion y almacenaje:^FS
-^FO${W-42},${H-8}^A0R,16,16^FDUtilice siempre EPP adecuado.^FS
-^FO${W-60},${H-8}^A0R,16,16^FDAlmacene en areas secas, frescas y ventiladas.^FS
-^FO${W-78},${H-8}^A0R,16,16^FDEvite calor intenso y luz solar directa.^FS
-^FO${W-112},${H-8}^A0R,20,20^FDPrimeros auxilios:^FS
-^FO${W-134},${H-8}^A0R,16,16^FDEn caso de intoxicacion consulte a su medico^FS
-^FO${W-152},${H-8}^A0R,16,16^FDo llame al CITUC: 02 2635 3800^FS
-^FO${W-170},${H-8}^A0R,16,16^FDAtencion 24hrs todos los dias.^FS
-
-^XZ`;
-}
 
 
 async function dibujarEtiquetaCanvas(ctx, e, W, H){
@@ -914,7 +771,7 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
     ctx.fillText(bloque.titulo, startX, curY);
     curY += LH * 1.2;
     ctx.font = FS+'px "DM Sans",Arial,sans-serif';
-    ctx.fillStyle = '#444';
+    ctx.fillStyle = '#111';
     bloque.lineas.forEach(l => { ctx.fillText(l, startX, curY); curY += LH; });
   });
 
@@ -951,12 +808,14 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
   }
 
   // Título centrado bajo el logo
-  const tSz = e.titulo.length > 18 ? f(22) : e.titulo.length > 12 ? f(26) : f(30);
-  const titY = logoY + logoH + f(28);
+  const tSz = e.titulo.length > 18 ? f(26) : e.titulo.length > 12 ? f(30) : f(34);
+  const titY = logoY + logoH + f(32);
   ctx.fillStyle = '#111';
   ctx.textAlign = 'center';
+  ctx.letterSpacing = f(3)+'px';
   ctx.font = 'bold '+tSz+'px "Bebas Neue",Arial,sans-serif';
   ctx.fillText((e.titulo||'').toUpperCase(), CX, titY);
+  ctx.letterSpacing = '0px';
 
   // Subtítulo
   const subY = titY + f(18);
@@ -975,32 +834,31 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
   ctx.moveTo(CX, divTopY); ctx.lineTo(CX, divBotY);
   ctx.stroke();
 
-  // Contenido neto — anclado a la parte inferior
+  // Contenido neto — anclado a la parte inferior con espacio para el footer
   ctx.fillStyle = '#666';
   ctx.textAlign = 'center';
   ctx.font = '600 '+f(9)+'px "DM Sans",Arial,sans-serif';
-  ctx.fillText('CONTENIDO NETO', CX, H-f(52));
+  ctx.fillText('CONTENIDO NETO', CX, H-f(72));
 
   ctx.fillStyle = '#111';
   ctx.font = 'bold '+f(26)+'px "DM Sans",Arial,sans-serif';
-  ctx.fillText(e.contenido||'', CX, H-f(26));
+  ctx.fillText(e.contenido||'', CX, H-f(46));
 
   // Footer — auto-reduce font size to fit full text
-  if(e.footer){
+  if(e.footer || e.footer2){
     ctx.save();
-    ctx.fillStyle = '#444';
+    ctx.fillStyle = '#333';
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom'; // ancla texto desde abajo — no se corta
-    const maxW = W - COL_L - COL_R - f(16);
-    // Empezar con fuente legible y reducir solo si no cabe
-    let fSize = f(11);
+    ctx.textBaseline = 'top';
+    const fSize = f(9.5);
     ctx.font = fSize + 'px "DM Sans",Arial,sans-serif';
-    while(ctx.measureText(e.footer).width > maxW && fSize > f(7)){
-      fSize -= S * 0.3;
-      ctx.font = fSize + 'px "DM Sans",Arial,sans-serif';
-    }
-    // Posicionar a f(18) del borde — suficiente margen para que no se corte
-    ctx.fillText(e.footer, CX, H - f(8));
+    const lineH = fSize * 1.4;
+    const line1 = e.footer  || '';
+    const line2 = e.footer2 || '';
+    const totalH = (line1 && line2) ? lineH*2 : lineH;
+    const footerY = H - f(6) - totalH;
+    if(line1) ctx.fillText(line1, CX, footerY);
+    if(line2) ctx.fillText(line2, CX, footerY + (line1 ? lineH : 0));
     ctx.restore();
   }
 
@@ -1059,7 +917,8 @@ const EDIT_FIELDS = [
   { id:'ed-venc',      label:'Fecha Vencimiento', type:'month', key:'venc'      },
   { id:'ed-pais',      label:'País de Origen',    type:'text',  key:'pais'      },
   { id:'ed-dosis',     label:'Dosis',             type:'text',  key:'dosis'     },
-  { id:'ed-footer',    label:'Footer',            type:'text',  key:'footer'    },
+  { id:'ed-footer',    label:'Footer Línea 1',    type:'text',  key:'footer'    },
+  { id:'ed-footer2',   label:'Footer Línea 2',    type:'text',  key:'footer2'   },
 ];
 
 function abrirEdit(id){
@@ -1101,6 +960,7 @@ async function guardarEdit(id){
     pais:           document.getElementById('ed-pais').value.trim(),
     dosis:          document.getElementById('ed-dosis').value.trim(),
     footer:         document.getElementById('ed-footer').value.trim(),
+    footer2:        document.getElementById('ed-footer2') ? document.getElementById('ed-footer2').value.trim() : '',
   };
   // Recalcular ZPL con datos actualizados
   const e = todas.find(x=>x.id===id);
@@ -1172,11 +1032,7 @@ function eliminarCard(id, nombre){
   document.body.appendChild(ov);
 }
 
-async function copyZPLcard(id){
-  const e=todas.find(x=>x.id===id); if(!e) return;
-  const zpl = await buildZPL(e);
-  navigator.clipboard.writeText(zpl).then(()=>toast('ZPL copiado ✓','ok'));
-}
+
 
 // ══ BUSCAR / LISTAR ══
 let todas = [];
@@ -1229,7 +1085,7 @@ function renderLista(lista){
           <div class="ecard-acts">
             <button class="btn btn-dark btn-sm" onclick="abrirModal('${e.id}')">🖨️ Imprimir</button>
             <button class="btn btn-outline btn-sm" onclick="abrirEdit('${e.id}')">✏️ Editar</button>
-            <button class="btn btn-outline btn-sm" onclick="copyZPLcard('${e.id}')">📋 ZPL</button>
+            
             <button class="btn btn-delete btn-sm" onclick="eliminarCard('${e.id}','${(e.titulo_completo||e.titulo||'').replace(/'/g,'')}'  )">🗑</button>
           </div>
         </div>
@@ -1263,7 +1119,6 @@ async function guardar(){
         contenido:       cont,
         titulo_completo: d.titulo + ' - ' + cont,
         ean13:           ean,
-        zpl:             await buildZPL({...base, contenido: cont, ean13: ean}),
         created_at:      window.$ts(),
       };
       await window.$add(window.$col('etiquetas'), doc);
@@ -1335,7 +1190,7 @@ function mostrarConfirmacion(msg, titulo, contenidos){
   const icon = document.createElement('div'); icon.style.cssText='font-size:48px;margin-bottom:12px;'; icon.textContent='✅';
   const h = document.createElement('div'); h.style.cssText='font-family:"Bebas Neue",sans-serif;font-size:22px;letter-spacing:1px;color:#0f1117;margin-bottom:6px;'; h.textContent=msg;
   const sub = document.createElement('div'); sub.style.cssText='font-size:14px;color:#6b7280;margin-bottom:4px;'; sub.textContent=titulo;
-  const cont = document.createElement('div'); cont.style.cssText='font-size:13px;color:#4f46e5;font-weight:600;margin-bottom:24px;font-family:"DM Mono",monospace;'; cont.textContent=contenidos;
+  const cont = document.createElement('div'); cont.style.cssText='font-size:13px;color:#4f46e5;font-weight:600;margin-bottom:24px;'; cont.textContent=contenidos;
   const btnRow = document.createElement('div'); btnRow.style.cssText='display:flex;gap:10px;justify-content:center;';
   const btnBuscar = document.createElement('button'); btnBuscar.className='btn btn-dark'; btnBuscar.style.cssText='flex:1;justify-content:center;'; btnBuscar.textContent='Ver etiquetas'; btnBuscar.onclick=()=>{ document.body.removeChild(ov); showTab('buscar'); };
   const btnNueva = document.createElement('button'); btnNueva.className='btn btn-outline'; btnNueva.style.cssText='flex:1;justify-content:center;'; btnNueva.textContent='Crear otra'; btnNueva.onclick=()=>document.body.removeChild(ov);
@@ -1363,13 +1218,13 @@ async function imprimirBrowser(e, qty){
   const imgsHTML=paginas.map(src=>'<div class="pg"><img src="'+src+'" class="lbl-img"></div>').join('');
   printWin.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Etiqueta</title>
 <style>
-@page{size:150mm 100mm landscape;margin:0;}
+@page{size:150mm 100mm landscape;margin:0;padding:0;}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
-html,body{margin:0;padding:0;background:#fff;width:150mm;}
-.pg{width:150mm;height:100mm;overflow:hidden;position:relative;page-break-after:always;page-break-inside:avoid;}
+html,body{margin:0;padding:0;width:150mm;height:100mm;overflow:hidden;background:#fff;}
+.pg{width:150mm;height:100mm;overflow:hidden;position:relative;page-break-after:always;page-break-inside:avoid;display:block;}
 .pg:last-child{page-break-after:avoid;}
-.lbl-img{position:absolute;top:0;left:0;width:150mm;height:100mm;display:block;}
-@media screen{body{background:#666;padding:20px;display:flex;flex-direction:column;gap:20px;align-items:center;width:auto;}.pg{box-shadow:0 2px 20px rgba(0,0,0,.4);}}
+.lbl-img{position:absolute;top:0;left:0;width:150mm;height:100mm;display:block;margin:0;padding:0;}
+@media screen{html,body{width:auto;height:auto;overflow:auto;}body{background:#555;padding:20px;display:flex;flex-direction:column;gap:20px;align-items:center;}.pg{box-shadow:0 2px 20px rgba(0,0,0,.4);}}
 </style></head><body>${imgsHTML}
 <script>
 let loaded=0;
@@ -1381,80 +1236,14 @@ if(imgs.length===0)setTimeout(()=>window.print(),400);
   printWin.document.close();
 }
 
-async function exportarPDF(e, qty){
-  toast('Generando PPTX...','ok');
-  await new Promise(r=>setTimeout(r,50));
-
-  // PptxGenJS — slide de 15cm × 10cm (en pulgadas: 5.906 × 3.937)
-  const W_IN = 5.906, H_IN = 3.937; // 150mm × 100mm en pulgadas
-  const pptx = new PptxGenJS();
-  pptx.defineLayout({ name:'LABEL', width: W_IN, height: H_IN });
-  pptx.layout = 'LABEL';
-
-  // Canvas a alta resolución: 300dpi sobre 150×100mm
-  const CVW = 1772, CVH = 1181; // 300 DPI
-
-  for(let pg=0; pg<qty; pg++){
-    const slide = pptx.addSlide();
-    slide.background = { color: 'FFFFFF' };
-
-    const cv  = document.createElement('canvas');
-    cv.width  = CVW; cv.height = CVH;
-    const ctx = cv.getContext('2d');
-    await dibujarEtiquetaCanvas(ctx, e, CVW, CVH);
-
-    // PNG base64 sin prefijo
-    const dataUrl = cv.toDataURL('image/png');
-    const b64     = dataUrl.split(',')[1];
-
-    // Imagen que ocupa el slide completo
-    slide.addImage({
-      data:   'image/png;base64,' + b64,
-      x: 0, y: 0,
-      w: W_IN, h: H_IN,
-      sizing: { type: 'contain', w: W_IN, h: H_IN }
-    });
-  }
-
-  const nombre = (e.titulo_completo||e.titulo||'etiqueta')
-    .replace(/[^a-z0-9áéíóú]/gi,'-').toLowerCase();
-  await pptx.writeFile({ fileName: nombre+(qty>1?'-x'+qty:'')+'.pptx' });
-  toast('PPTX descargado ✓','ok');
-}
 
 function imprimir(id){
   const e=todas.find(x=>x.id===id); if(!e) return;
   imprimirBrowser(e,1);
 }
 
-// ══ IMPRIMIR ══
-function setPrintMode(mode){
-  printMode = mode;
-  ['html','pdf','zpl'].forEach(m => {
-    const el = document.getElementById('mode-'+m);
-    if(el) el.classList.toggle('active', m===mode);
-  });
-}
 
-async function ejecutarImpresion(id){
-  const e   = todas.find(x=>x.id===id); if(!e) return;
-  const qty = Math.max(1, parseInt(document.getElementById('print-qty').value)||1);
-  if(printMode === 'zpl'){
-    const zpl = await buildZPL(e);
-    const sep = '\n';
-    const multi = Array(qty).fill(zpl).join(sep);
-    navigator.clipboard.writeText(multi).then(()=>toast('ZPL x'+qty+' copiado','ok'));
-  } else if(printMode === 'pdf'){
-    exportarPDF(e, qty);
-  } else {
-    imprimirBrowser(e, qty);
-  }
-}
 
-function copiarZPL(){
-  const txt = document.getElementById('zpl-out').textContent;
-  navigator.clipboard.writeText(txt).then(()=>toast('ZPL copiado ✓','ok'));
-}
 
 // ══ TABS ══
 function showTab(t){
@@ -1477,14 +1266,10 @@ window.showTab=showTab; window.renderPreview=renderPreview; window.nuevoEAN=nuev
 window.toggleVencAuto=toggleVencAuto; window.calcVencAuto=calcVencAuto;
 window.guardar=guardar; window.cargar=cargar; window.filtrar=filtrar;
 window.abrirModal=abrirModal; window.cerrarModal=cerrarModal;
-window.setPrintMode=setPrintMode; window.ejecutarImpresion=ejecutarImpresion;
-
 window.abrirEdit=abrirEdit; window.cerrarEdit=cerrarEdit; window.guardarEdit=guardarEdit;
 window.mostrarConfirmacion=mostrarConfirmacion;
 window.eliminarCard=eliminarCard;
-window.imprimir=imprimir; window.copiarZPL=copiarZPL; window.copyZPLcard=copyZPLcard;
-
-// ══ INIT ══
+window.imprimir=imprimir; // ══ INIT ══
 document.getElementById('f-ean').value=curEAN;
 renderPreview();
 </script>
