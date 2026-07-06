@@ -929,11 +929,6 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
   }
 }
 
-function imprimir(id){
-  const e=todas.find(x=>x.id===id); if(!e) return;
-  exportarPDF(e, 1);
-}
-
 // ══ EDITAR ══
 const EDIT_FIELDS = [
   { id:'ed-titulo',    label:'Título',           type:'text',  key:'titulo',    upper:true },
@@ -1197,8 +1192,8 @@ function abrirModal(id){
 
   const btnPptx = document.createElement('button');
   btnPptx.className='btn btn-outline'; btnPptx.style.cssText='flex:1;justify-content:center;';
-  btnPptx.innerHTML='📊 PPTX';
-  btnPptx.onclick=()=>{ cerrarModal(); exportarPDF(e, Math.max(1,parseInt(document.getElementById('print-qty').value)||1)); };
+  btnPptx.innerHTML='🖼️ IMAGEN';
+  btnPptx.onclick=()=>{ cerrarModal(); exportarImagen(e, Math.max(1,parseInt(document.getElementById('print-qty').value)||1)); };
 
   actRow.appendChild(btnImprimir);
   actRow.appendChild(btnPptx);
@@ -1267,6 +1262,31 @@ if(imgs.length===0)setTimeout(()=>window.print(),400);
 function imprimir(id){
   const e=todas.find(x=>x.id===id); if(!e) return;
   imprimirBrowser(e,1);
+}
+
+async function exportarImagen(e, qty){
+  toast('Generando imagen a 300 DPI...','ok');
+  await new Promise(r=>setTimeout(r,80));
+  const CW=1772, CH=1181; // 15x10 cm @ 300 DPI
+  const base = (e.titulo_completo||e.titulo||'etiqueta')
+    .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'') || 'etiqueta';
+
+  for(let i=0;i<qty;i++){
+    const cv=document.createElement('canvas');
+    cv.width=CW; cv.height=CH;
+    const ctx=cv.getContext('2d');
+    await dibujarEtiquetaCanvas(ctx,e,CW,CH);
+    const url = cv.toDataURL('image/png');
+    const a=document.createElement('a');
+    a.href = url;
+    a.download = qty>1 ? `${base}_${i+1}.png` : `${base}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    if(i<qty-1) await new Promise(r=>setTimeout(r,200));
+  }
+  toast(qty>1 ? 'Imágenes descargadas' : 'Imagen descargada','ok');
 }
 
 
