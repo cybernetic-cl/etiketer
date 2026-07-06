@@ -190,6 +190,10 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   font-size: 10.5px; font-style: italic; color: #555;
   margin-bottom: 6px; text-align: center;
 }
+.lp-subtitulo2 {
+  font-size: 9px; color: #777;
+  margin-top: -4px; margin-bottom: 6px; text-align: center;
+}
 .lp-divider { width: 1px; height: 36px; background: #111; margin: 6px 0; }
 .lp-cont-lbl { font-size: 8px; color: #666; font-weight: 600; letter-spacing: .5px; margin-bottom: 5px; }
 .lp-cont-opts { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
@@ -331,6 +335,11 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       <div class="field">
         <label>Subtítulo / Grado</label>
         <input id="f-subtitulo" type="text" placeholder="Food Grade" oninput="renderPreview()">
+      </div>
+
+      <div class="field">
+        <label>Subtítulo 2</label>
+        <input id="f-subtitulo2" type="text" placeholder="Ej: 99.9% Pureza" oninput="renderPreview()">
       </div>
 
       <div class="field">
@@ -541,6 +550,7 @@ function datos(){
     logo:      document.getElementById('f-logo').value    ||'dmp',
     titulo:    (document.getElementById('f-titulo').value||'PRODUCTO').toUpperCase(),
     subtitulo: document.getElementById('f-subtitulo').value||'',
+    subtitulo2: document.getElementById('f-subtitulo2').value||'',
     contenidos: (()=>{
       const custom = document.getElementById('f-cont-custom').value.trim();
       if(custom) return [custom];
@@ -604,6 +614,9 @@ function labelHTML(d, sfx){
   const subEl = d.subtitulo
     ? `<div class="lp-subtitulo">${d.subtitulo}</div>`
     : '';
+  const subEl2 = d.subtitulo2
+    ? `<div class="lp-subtitulo2">${d.subtitulo2}</div>`
+    : '';
 
   return `
   <div class="lp-left">
@@ -629,6 +642,7 @@ function labelHTML(d, sfx){
     ${logoEl}
     <div class="lp-titulo">${d.titulo}</div>
     ${subEl}
+    ${subEl2}
     </div>
     <div class="lp-divider" style="margin-top:auto;"></div>
     <div style="display:flex;flex-direction:column;align-items:center;">
@@ -785,7 +799,7 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
   // Centrar logo+titulo+subtitulo en esa zona
   const zoneTop = f(10);
   const zoneMid = H * 0.52;
-  const blockH  = logoH + f(34) + (e.subtitulo ? f(18) : 0);
+  const blockH  = logoH + f(34) + (e.subtitulo ? f(18) : 0) + (e.subtitulo2 ? f(14) : 0);
   const blockY  = zoneTop + (zoneMid - zoneTop - blockH) / 2;
 
   // Logo
@@ -827,10 +841,19 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
     ctx.fillText(e.subtitulo, CX, subY);
   }
 
+  // Subtítulo 2
+  const sub2Y = subY + (e.subtitulo ? f(13) : 0);
+  if(e.subtitulo2){
+    ctx.fillStyle = '#777';
+    ctx.font = f(9.5)+'px "DM Sans",Arial,sans-serif';
+    ctx.fillText(e.subtitulo2, CX, sub2Y);
+  }
+
   // Divider
   ctx.strokeStyle = '#111';
   ctx.lineWidth   = f(1);
-  const divTopY = e.subtitulo ? subY + f(14) : titY + f(14);
+  const divBaseY = e.subtitulo2 ? sub2Y : (e.subtitulo ? subY : titY);
+  const divTopY = divBaseY + f(14);
   const divBotY = divTopY + f(40);
   ctx.beginPath();
   ctx.moveTo(CX, divTopY); ctx.lineTo(CX, divBotY);
@@ -915,6 +938,7 @@ function imprimir(id){
 const EDIT_FIELDS = [
   { id:'ed-titulo',    label:'Título',           type:'text',  key:'titulo',    upper:true },
   { id:'ed-subtitulo', label:'Subtítulo',         type:'text',  key:'subtitulo' },
+  { id:'ed-subtitulo2', label:'Subtítulo 2',      type:'text',  key:'subtitulo2' },
   { id:'ed-contenido', label:'Contenido Neto',    type:'text',  key:'contenido' },
   { id:'ed-venc',      label:'Fecha Vencimiento', type:'month', key:'venc'      },
   { id:'ed-pais',      label:'País de Origen',    type:'text',  key:'pais'      },
@@ -956,6 +980,7 @@ async function guardarEdit(id){
   const updates = {
     titulo,
     subtitulo:      document.getElementById('ed-subtitulo').value.trim(),
+    subtitulo2:     document.getElementById('ed-subtitulo2').value.trim(),
     contenido,
     titulo_completo: titulo + (contenido ? ' - '+contenido : ''),
     venc:           document.getElementById('ed-venc').value,
