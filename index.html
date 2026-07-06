@@ -187,12 +187,12 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   letter-spacing: 1px; line-height: 1; margin-bottom: 3px;
 }
 .lp-subtitulo {
-  font-size: 10.5px; font-style: italic; color: #555;
+  font-size: 13px; font-style: italic; color: #555;
   margin-bottom: 6px; text-align: center;
 }
 .lp-subtitulo2 {
-  font-size: 9px; color: #777;
-  margin-top: -4px; margin-bottom: 6px; text-align: center;
+  font-size: 11.5px; color: #666;
+  margin-top: 1px; margin-bottom: 6px; text-align: center;
 }
 .lp-divider { width: 1px; height: 36px; background: #111; margin: 6px 0; }
 .lp-cont-lbl { font-size: 8px; color: #666; font-weight: 600; letter-spacing: .5px; margin-bottom: 5px; }
@@ -799,7 +799,7 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
   // Centrar logo+titulo+subtitulo en esa zona
   const zoneTop = f(10);
   const zoneMid = H * 0.52;
-  const blockH  = logoH + f(34) + (e.subtitulo ? f(18) : 0) + (e.subtitulo2 ? f(14) : 0);
+  const blockH  = logoH + f(34) + (e.subtitulo ? f(20) : 0) + (e.subtitulo2 ? f(16) : 0);
   const blockY  = zoneTop + (zoneMid - zoneTop - blockH) / 2;
 
   // Logo
@@ -837,15 +837,15 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
   const subY = titY + f(18);
   if(e.subtitulo){
     ctx.fillStyle = '#555';
-    ctx.font = 'italic '+f(11)+'px "DM Sans",Arial,sans-serif';
+    ctx.font = 'italic '+f(13)+'px "DM Sans",Arial,sans-serif';
     ctx.fillText(e.subtitulo, CX, subY);
   }
 
   // Subtítulo 2
-  const sub2Y = subY + (e.subtitulo ? f(13) : 0);
+  const sub2Y = subY + (e.subtitulo ? f(16) : 0);
   if(e.subtitulo2){
-    ctx.fillStyle = '#777';
-    ctx.font = f(9.5)+'px "DM Sans",Arial,sans-serif';
+    ctx.fillStyle = '#666';
+    ctx.font = f(11.5)+'px "DM Sans",Arial,sans-serif';
     ctx.fillText(e.subtitulo2, CX, sub2Y);
   }
 
