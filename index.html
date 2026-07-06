@@ -596,7 +596,7 @@ function labelHTML(d, sfx){
   // Campos opcionales: solo los que tienen valor
   const infoLines = [
     d.dosis ? `<strong>Dosis:</strong> ${d.dosis}` : '',
-    d.pais  ? `<strong>Origen:</strong> ${d.pais}` : '',
+    (d.pais && d.pais.trim()) ? `<strong>Origen:</strong> ${d.pais}` : '',
     fv      ? `<strong>Venc:</strong> ${fv}` : '',
   ].filter(Boolean).join('<br>');
 
@@ -610,9 +610,11 @@ function labelHTML(d, sfx){
     <div class="lp-left-inner">
       <div class="lp-block">
         <span class="lp-btitle">Manipulación y almacenaje</span>
-        <span class="lp-btext">Utilice siempre EPP adecuado.</span>
+        <span class="lp-btext">Utilice siempre EPP (Elementos de</span>
+        <span class="lp-btext">Protección Personal) adecuado.</span>
         <span class="lp-btext">Almacene en áreas secas, frescas</span>
         <span class="lp-btext">y ventiladas. Evite calor y sol.</span>
+        <span class="lp-btext">Mantenga alejado de mascotas y niños.</span>
       </div>
       <div class="lp-block">
         <span class="lp-btitle">Primeros auxilios</span>
@@ -755,7 +757,7 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
   const bloques = [
     {
       titulo: 'Manipulacion y almacenaje:',
-      lineas: ['Utilice siempre EPP adecuado.','Almacene en areas secas, frescas','y ventiladas. Evite calor y sol.']
+      lineas: ['Utilice siempre EPP (Elementos de','Proteccion Personal) adecuado.','Almacene en areas secas, frescas','y ventiladas. Evite calor y sol.','Mantenga alejado de mascotas y ninos.']
     },
     {
       titulo: 'Primeros auxilios:',
@@ -869,7 +871,7 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
 
   const infoItems = [
     e.dosis ? ['Dosis: ',  e.dosis] : null,
-    e.pais  ? ['Origen: ', e.pais]  : null,
+    (e.pais && e.pais.trim()) ? ['Origen: ', e.pais]  : null,
     fv      ? ['Venc: ',   fv]      : null,
   ].filter(Boolean);
 
