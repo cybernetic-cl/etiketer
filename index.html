@@ -303,6 +303,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   <div class="logo">🏷 Etiketer <span class="logo-badge">v2</span></div>
   <button class="tab-btn active" id="tab-crear"  onclick="showTab('crear')">+ Crear Etiqueta</button>
   <button class="tab-btn"        id="tab-buscar" onclick="showTab('buscar')">🔍 Buscar / Imprimir</button>
+  <button class="tab-btn" onclick="openLogoManager()">🖼 Logos</button>
   <div class="spacer"></div>
 
   <div class="fb-status">
@@ -489,6 +490,23 @@ const LOGOS = {
 };
 const LOGO_TEXT = { dmp:'DMP', aio:'AIO', masco:'MASCO' };
 
+// ══ LOGOS PERSONALIZADOS (localStorage) ══
+const LOGO_LS_KEY = 'etiketer_logos';
+function getCustomLogos(){
+  try { return JSON.parse(localStorage.getItem(LOGO_LS_KEY)) || {}; }
+  catch(e){ return {}; }
+}
+function setCustomLogo(key, dataUrl){
+  const o = getCustomLogos();
+  if(dataUrl) o[key] = dataUrl; else delete o[key];
+  try { localStorage.setItem(LOGO_LS_KEY, JSON.stringify(o)); }
+  catch(e){ alert('No se pudo guardar el logo (almacenamiento lleno). Prueba con una imagen más liviana.'); }
+}
+// Devuelve el logo vigente: personalizado > por defecto
+function getLogo(key){
+  return getCustomLogos()[key] || LOGOS[key] || null;
+}
+
 // ══ OPCIONES CONTENIDO ══
 const OPTS_PESO   = ['100 gr','250 gr','500 gr','1 Kilo','5 Kilos','10 Kilos','25 Kilos'];
 const OPTS_LIQUID = ['500 ml','1 Litro','1 Galón','5 Litros','20 Litros'];
@@ -591,7 +609,7 @@ function resolveVenc(d){
 function labelHTML(d, sfx){
   // Logo: imagen o texto
   const logoKey = (d.logo||'dmp').toLowerCase();
-  const logoSrc = LOGOS[logoKey];
+  const logoSrc = getLogo(logoKey);
   const logoEl  = logoSrc
     ? `<img src="${logoSrc}" class="lp-logo" alt="logo">`
     : `<div style="background:#111;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:18px;padding:5px 14px;letter-spacing:2px;margin-bottom:8px;">${LOGO_TEXT[logoKey]||'DMP'}</div>`;
@@ -805,7 +823,7 @@ async function dibujarEtiquetaCanvas(ctx, e, W, H){
 
   // Logo
   const logoKey = (e.logo||'dmp').toLowerCase();
-  const logoSrc = LOGOS[logoKey];
+  const logoSrc = getLogo(logoKey);
   const logoY   = Math.max(f(10), blockY);
   if(logoSrc){
     await new Promise(res => {
@@ -1327,6 +1345,102 @@ window.eliminarCard=eliminarCard;
 window.imprimir=imprimir; // ══ INIT ══
 document.getElementById('f-ean').value=curEAN;
 renderPreview();
+</script>
+
+<!-- ══ GESTOR DE LOGOS ══ -->
+<style>
+.lm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;align-items:center;justify-content:center}
+.lm-overlay.open{display:flex}
+.lm-modal{background:#fff;border-radius:12px;width:min(560px,92vw);max-height:88vh;overflow:auto;padding:22px 24px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.lm-modal h3{margin:0 0 4px;font-size:18px}
+.lm-modal .lm-sub{font-size:12px;color:#777;margin-bottom:16px}
+.lm-row{display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid #eee}
+.lm-thumb{width:120px;height:64px;border:1px solid #ddd;border-radius:8px;background:#fafafa;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto}
+.lm-thumb img{max-width:92%;max-height:88%;object-fit:contain}
+.lm-thumb .lm-txt{font-weight:700;font-size:13px;color:#888}
+.lm-info{flex:1;min-width:0}
+.lm-info b{display:block;font-size:14px}
+.lm-info small{color:#999;font-size:11px}
+.lm-acts{display:flex;flex-direction:column;gap:6px}
+.lm-acts button{font-size:12px;padding:6px 10px;border:1px solid #ccc;border-radius:6px;background:#f5f5f5;cursor:pointer}
+.lm-acts button:hover{background:#e8e8e8}
+.lm-acts button.lm-up{background:#1a73e8;border-color:#1a73e8;color:#fff}
+.lm-acts button.lm-up:hover{background:#1557b0}
+.lm-close{margin-top:16px;width:100%;padding:9px;border:none;border-radius:8px;background:#222;color:#fff;font-size:13px;cursor:pointer}
+</style>
+<div class="lm-overlay" id="lm-overlay" onclick="if(event.target===this) closeLogoManager()">
+  <div class="lm-modal">
+    <h3>🖼 Gestor de logos</h3>
+    <div class="lm-sub">Sube un PNG/JPG por marca (fondo transparente recomendado). Se guarda en este navegador y reemplaza al logo por defecto. La relación de aspecto siempre se conserva.</div>
+    <div id="lm-rows"></div>
+    <button class="lm-close" onclick="closeLogoManager()">Cerrar</button>
+  </div>
+</div>
+<input type="file" id="lm-file" accept="image/*" style="display:none">
+
+<script>
+const LM_BRANDS = [
+  { key:'dmp',   name:'DMP',       desc:'Distribuidora de Materias Primas' },
+  { key:'aio',   name:'AIO',       desc:'All In One' },
+  { key:'masco', name:'Mascokits', desc:'Mascokits' },
+];
+let lmPendingKey = null;
+
+function lmRender(){
+  const cont = document.getElementById('lm-rows');
+  const custom = getCustomLogos();
+  cont.innerHTML = LM_BRANDS.map(b => {
+    const src = getLogo(b.key);
+    const isCustom = !!custom[b.key];
+    const thumb = src
+      ? '<img src="'+src+'" alt="'+b.name+'">'
+      : '<span class="lm-txt">'+(LOGO_TEXT[b.key]||b.name)+' (texto)</span>';
+    return '<div class="lm-row">'
+      + '<div class="lm-thumb">'+thumb+'</div>'
+      + '<div class="lm-info"><b>'+b.name+'</b><small>'+b.desc+' · '+(isCustom ? 'logo personalizado' : (LOGOS[b.key] ? 'logo por defecto' : 'sin logo — usa texto'))+'</small></div>'
+      + '<div class="lm-acts">'
+      +   '<button class="lm-up" onclick="lmPick(\''+b.key+'\')">⬆ Subir</button>'
+      +   (isCustom ? '<button onclick="lmReset(\''+b.key+'\')">↩ Restaurar</button>' : '')
+      + '</div></div>';
+  }).join('');
+}
+function openLogoManager(){ lmRender(); document.getElementById('lm-overlay').classList.add('open'); }
+function closeLogoManager(){ document.getElementById('lm-overlay').classList.remove('open'); }
+function lmPick(key){ lmPendingKey = key; document.getElementById('lm-file').click(); }
+function lmReset(key){ setCustomLogo(key, null); lmRender(); if(typeof renderPreview==='function') renderPreview(); }
+
+document.getElementById('lm-file').addEventListener('change', function(){
+  const f = this.files && this.files[0];
+  this.value = '';
+  if(!f || !lmPendingKey) return;
+  const key = lmPendingKey; lmPendingKey = null;
+  const rd = new FileReader();
+  rd.onload = function(e){
+    const img = new Image();
+    img.onload = function(){
+      // Reescalar a máx 800px de ancho conservando relación de aspecto
+      const MAXW = 800;
+      const scale = Math.min(1, MAXW / img.naturalWidth);
+      const w = Math.round(img.naturalWidth * scale);
+      const h = Math.round(img.naturalHeight * scale);
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      setCustomLogo(key, cv.toDataURL('image/png'));
+      lmRender();
+      if(typeof renderPreview==='function') renderPreview();
+    };
+    img.onerror = function(){ alert('No se pudo leer la imagen.'); };
+    img.src = e.target.result;
+  };
+  rd.readAsDataURL(f);
+});
+
+// Globales para los onclick del modal
+window.openLogoManager = openLogoManager;
+window.closeLogoManager = closeLogoManager;
+window.lmPick = lmPick;
+window.lmReset = lmReset;
 </script>
 </body>
 </html>
