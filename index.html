@@ -749,13 +749,14 @@ function renderPreview(){
 
 
 
-async function dibujarEtiquetaCanvas(ctx, e, W, H){
+async function dibujarEtiquetaCanvas(ctx, e, W, H, opts = {}){
   await document.fonts.ready;
+  const hideVenc = !!opts.hideVenc;
 
   const S  = W / 567;
   const f  = n => n * S;
 
-  const fv = (() => {
+  const fv = hideVenc ? '' : (() => {
     const rv = resolveVenc(e);
     return rv ? (([y,m]) => m+'/'+y.slice(2))(rv.split('-')) : '';
   })();
@@ -1302,7 +1303,7 @@ async function exportarImagen(e, qty){
     const cv=document.createElement('canvas');
     cv.width=CW; cv.height=CH;
     const ctx=cv.getContext('2d');
-    await dibujarEtiquetaCanvas(ctx,e,CW,CH);
+    await dibujarEtiquetaCanvas(ctx,e,CW,CH,{hideVenc:true});
     const url = cv.toDataURL('image/png');
     const a=document.createElement('a');
     a.href = url;
