@@ -59,6 +59,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .app.active { display: grid; }
 #app-crear  { grid-template-columns: 390px 1fr; gap: 22px; align-items: start; }
 #app-buscar { grid-template-columns: 1fr; }
+#app-fragil { grid-template-columns: 340px 1fr; gap: 22px; align-items: start; }
 
 /* ── Panel ── */
 .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--sh); }
@@ -303,6 +304,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   <div class="logo">🏷 Etiketer <span class="logo-badge">v2</span></div>
   <button class="tab-btn active" id="tab-crear"  onclick="showTab('crear')">+ Crear Etiqueta</button>
   <button class="tab-btn"        id="tab-buscar" onclick="showTab('buscar')">🔍 Buscar / Imprimir</button>
+  <button class="tab-btn"        id="tab-fragil" onclick="showTab('fragil')">⚠ Frágil 60×40</button>
   <button class="tab-btn" onclick="openLogoManager()">🖼 Logos</button>
   <div class="spacer"></div>
 
@@ -445,6 +447,30 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       <button class="modal-close" onclick="cerrarEdit()">✕</button>
     </div>
     <div id="edit-body"></div>
+  </div>
+</div>
+
+<!-- ══ FRÁGIL 60×40 ══ -->
+<div class="app" id="app-fragil">
+  <div class="panel">
+    <div class="ph"><span class="ph-title">Etiqueta Frágil — 60 × 40 mm</span></div>
+    <div class="pb">
+      <div class="field">
+        <label>Línea intermedia</label>
+        <input id="fr-linea" type="text" value="LIQUIDO" style="text-transform:uppercase;" oninput="renderFragil()">
+        <div class="ean-hint">Déjala vacía para ocultarla (FRÁGIL se agranda).</div>
+      </div>
+      <div class="field">
+        <label>Cantidad de etiquetas</label>
+        <input id="fr-qty" type="number" min="1" max="500" value="1">
+      </div>
+      <button class="btn btn-dark btn-full" onclick="imprimirFragil()">🖨️ Imprimir</button>
+      <button class="btn btn-outline btn-full" onclick="descargarFragil()">🖼️ Descargar PNG</button>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="ph"><span class="ph-title">Vista Previa — 6 × 4 cm</span></div>
+    <div class="pv-outer"><canvas id="fragil-canvas" style="max-width:100%;box-shadow:0 3px 16px rgba(0,0,0,.22);"></canvas></div>
   </div>
 </div>
 
@@ -1103,12 +1129,16 @@ async function cargar(){
   }
 }
 
+// Normaliza: minúsculas y sin acentos/diéresis (á→a, ñ→n, ü→u)
+function normTxt(s){
+  return (s==null?'':String(s)).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+}
 function filtrar(){
-  const q = document.getElementById('search-q').value.toLowerCase();
+  const q = normTxt(document.getElementById('search-q').value);
+  if(!q){ renderLista(todas); return; }
   renderLista(todas.filter(e =>
-    (e.titulo||'').toLowerCase().includes(q) ||
-    (e.subtitulo||'').toLowerCase().includes(q) ||
-    (e.ean13||'').includes(q)
+    [e.titulo, e.titulo_completo, e.subtitulo, e.subtitulo2, e.contenido, e.ean13]
+      .some(v => normTxt(v).includes(q))
   ));
 }
 
@@ -1321,11 +1351,12 @@ async function exportarImagen(e, qty){
 
 // ══ TABS ══
 function showTab(t){
-  ['crear','buscar'].forEach(x=>{
+  ['crear','buscar','fragil'].forEach(x=>{
     document.getElementById('app-'+x).classList.toggle('active',x===t);
     document.getElementById('tab-'+x).classList.toggle('active',x===t);
   });
   if(t==='buscar') cargar();
+  if(t==='fragil') renderFragil();
 }
 
 // ══ TOAST ══
@@ -1343,7 +1374,123 @@ window.abrirModal=abrirModal; window.cerrarModal=cerrarModal;
 window.abrirEdit=abrirEdit; window.cerrarEdit=cerrarEdit; window.guardarEdit=guardarEdit;
 window.mostrarConfirmacion=mostrarConfirmacion;
 window.eliminarCard=eliminarCard;
-window.imprimir=imprimir; // ══ INIT ══
+window.imprimir=imprimir;
+
+// ══ ETIQUETA FRÁGIL 60×40 mm ══
+const FR_LS_KEY = 'etiketer_fragil_linea';
+(function(){ try{ const v=localStorage.getItem(FR_LS_KEY); if(v!==null) document.getElementById('fr-linea').value=v; }catch(e){} })();
+
+function fragilLinea(){ return (document.getElementById('fr-linea').value||'').trim().toUpperCase(); }
+
+async function dibujarFragil(ctx, W, H, linea){
+  await document.fonts.ready;
+  const k = W/600;                // diseño base 600×400
+  const f = n => n*k;
+  const FONT = '"DM Sans",Arial,sans-serif';
+
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#111'; ctx.strokeStyle='#111';
+
+  // Borde exterior
+  ctx.lineWidth=f(5);
+  ctx.strokeRect(f(6),f(6),W-f(12),H-f(12));
+
+  const L=f(6), R=W-f(6);
+  const hline = y => { ctx.lineWidth=f(4); ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(R,y); ctx.stroke(); };
+  // Texto centrado que se reduce para caber en maxW
+  const txt = (t, cy, size, maxW) => {
+    let sz=size; ctx.font='800 '+sz+'px '+FONT;
+    while(ctx.measureText(t).width>maxW && sz>4){ sz-=1; ctx.font='800 '+sz+'px '+FONT; }
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(t, W/2, cy);
+  };
+  const flecha = cx => {
+    const top=f(22), headH=f(38), headW=f(74), shaftW=f(24), bot=f(100);
+    ctx.beginPath();
+    ctx.moveTo(cx, top);
+    ctx.lineTo(cx+headW/2, top+headH);
+    ctx.lineTo(cx-headW/2, top+headH);
+    ctx.closePath(); ctx.fill();
+    ctx.fillRect(cx-shaftW/2, top+headH-1, shaftW, bot-(top+headH)+1);
+  };
+
+  // Banda superior
+  const y1=f(114);
+  flecha(f(80)); flecha(W-f(80));
+  txt('ESTE LADO',    f(48), f(38), f(360));
+  txt('HACIA ARRIBA', f(90), f(38), f(360));
+  hline(y1);
+
+  // Bandas inferiores
+  const yBot = f(338);
+  hline(yBot);
+  txt('TRANSPORTE CON CUIDADO', (yBot+H-f(6))/2, f(36), W-f(50));
+
+  let yFragEnd = yBot;
+  if(linea){
+    const yMid = f(278);
+    hline(yMid);
+    txt(linea, (yMid+yBot)/2+f(1), f(44), W-f(60));
+    yFragEnd = yMid;
+  }
+
+  // FRÁGIL
+  const bandH = yFragEnd - y1;
+  txt('FRÁGIL', y1 + bandH/2 + f(8), Math.min(f(165), bandH*1.0), W-f(50));
+}
+
+async function renderFragil(){
+  const linea = fragilLinea();
+  try{ localStorage.setItem(FR_LS_KEY, document.getElementById('fr-linea').value); }catch(e){}
+  const cv=document.getElementById('fragil-canvas'); if(!cv) return;
+  const PW=480, PH=320;
+  cv.width=PW*2; cv.height=PH*2;
+  cv.style.width=PW+'px'; cv.style.height=PH+'px';
+  const ctx=cv.getContext('2d'); ctx.scale(2,2);
+  await dibujarFragil(ctx, PW, PH, linea);
+}
+
+async function fragilPNG(){
+  const CW=709, CH=472; // 60×40 mm @ 300 DPI
+  const cv=document.createElement('canvas'); cv.width=CW; cv.height=CH;
+  await dibujarFragil(cv.getContext('2d'), CW, CH, fragilLinea());
+  return cv.toDataURL('image/png');
+}
+
+async function imprimirFragil(){
+  const qty=Math.max(1, parseInt(document.getElementById('fr-qty').value)||1);
+  const src=await fragilPNG();
+  const w=window.open('','_blank','width=700,height=600');
+  if(!w){ toast('Permite ventanas emergentes','err'); return; }
+  const pgs=Array.from({length:qty},()=>'<div class="pg"><img src="'+src+'"></div>').join('');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Frágil 60x40</title>
+<style>
+@page{size:60mm 40mm;margin:0;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+html,body{width:60mm;background:#fff;}
+.pg{width:60mm;height:40mm;overflow:hidden;page-break-after:always;page-break-inside:avoid;}
+.pg:last-child{page-break-after:avoid;}
+.pg img{width:60mm;height:40mm;display:block;}
+@media screen{html,body{width:auto;}body{background:#555;padding:20px;display:flex;flex-direction:column;gap:16px;align-items:center;}}
+</style></head><body>${pgs}
+<script>
+const imgs=document.images;let n=0;
+function go(){ if(++n>=imgs.length) setTimeout(()=>window.print(),300); }
+for(const i of imgs){ if(i.complete) go(); else { i.onload=go; i.onerror=go; } }
+<\/script></body></html>`);
+  w.document.close();
+}
+
+async function descargarFragil(){
+  const a=document.createElement('a');
+  a.href=await fragilPNG();
+  a.download='fragil_60x40.png';
+  document.body.appendChild(a); a.click(); a.remove();
+  toast('Imagen descargada','ok');
+}
+window.renderFragil=renderFragil; window.imprimirFragil=imprimirFragil; window.descargarFragil=descargarFragil;
+
+// ══ INIT ══
 document.getElementById('f-ean').value=curEAN;
 renderPreview();
 </script>
