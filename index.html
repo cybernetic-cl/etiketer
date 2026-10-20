@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Etiketer — Cybernetic SpA</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Bebas+Neue&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Bebas+Neue&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 
 
@@ -295,6 +297,142 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 @media print {
   @page { size: 150mm 100mm landscape; margin: 0; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+</style>
+<style id="etiketer-ui-v3">
+/* ══ ETIKETER · UI v3 (mismo estilo que Automatik / ForQ) ══
+   Solo cambia la interfaz. La etiqueta (.lp y los canvas) mantiene sus fuentes y colores de impresión. */
+:root{
+  --bg:#eef2ff; --surface:#fff; --surf2:#f6f8ff; --border:#e3e6ef; --border2:#d4d8e4;
+  --accent:#2d2aea; --indigo:#2d2aea; --pastel:#e9efff; --pastel2:#dce6ff;
+  --text:#1c1c30; --text2:#3a3a55; --muted:#6e7189;
+  --green:#17864f; --red:#d13a3a;
+  --radius:16px; --sh:0 1px 2px rgba(28,28,48,.04),0 4px 14px rgba(45,42,234,.06);
+  --ui:'Poppins',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+html,body{background:var(--bg)}
+body{font-family:var(--ui);color:var(--text);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+body button,body input,body select,body textarea{font-family:var(--ui)}
+.field input,.field select,.edit-inp,.search-bar input,.tab-btn,.btn,.mode-btn,.print-qty-row input,#f-venc-years{font-family:var(--ui)!important}
+#preview-count:empty{display:none}
+.lp,.lp *{font-family:'DM Sans',Arial,sans-serif}
+.lp .lp-titulo{font-family:'Bebas Neue',sans-serif}
+/* textos con fuentes antiguas fuera de la etiqueta */
+[style*="Bebas Neue"]:not(.lp *){font-family:var(--ui)!important;letter-spacing:-.2px!important;font-weight:700}
+::selection{background:var(--pastel2)}
+*::-webkit-scrollbar{width:8px;height:8px}*::-webkit-scrollbar-thumb{background:#c9cfe2;border-radius:99px}
+
+/* ── Barra superior ── */
+.topbar{background:#2d2aea;border-bottom:none;height:60px;padding:0 24px;gap:4px;box-shadow:0 2px 12px rgba(45,42,234,.25)}
+.logo{font-family:var(--ui);font-size:20px;font-weight:700;letter-spacing:-.3px;color:#fff;margin-right:22px;gap:8px}
+.logo-badge{background:rgba(255,255,255,.18);color:#fff;font-family:var(--ui);font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;letter-spacing:0}
+.tab-btn{color:rgba(255,255,255,.82);font-family:var(--ui);font-size:13px;font-weight:500;padding:8px 14px;border:none;border-radius:999px;margin:0 2px;white-space:nowrap}
+.tab-btn:hover{color:#fff;background:rgba(255,255,255,.12)}
+.tab-btn.active{color:#2d2aea;background:#fff;border:none;font-weight:600}
+.fb-status{color:#fff;font-size:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);padding:5px 12px;border-radius:999px;white-space:nowrap}
+.fb-dot{background:rgba(255,255,255,.6)}
+.fb-dot.ok{background:#6ff0b0;box-shadow:0 0 0 3px rgba(111,240,176,.25)}
+.fb-dot.err{background:#ff9a9a}
+
+/* ── Paneles ── */
+.app{padding:24px}
+.panel{background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--sh);overflow:hidden}
+.ph{padding:14px 20px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#f8f9ff,#fff)}
+.ph-title{font-size:14px;font-weight:600;color:var(--text);text-transform:none;letter-spacing:0}
+.pb{padding:20px}
+#preview-count{background:var(--pastel)!important;color:var(--indigo)!important;border-radius:999px!important;padding:3px 10px!important}
+
+/* ── Formulario ── */
+.field{margin-bottom:14px}
+.field>label{font-size:12.5px;font-weight:500;color:var(--text2);text-transform:none;letter-spacing:0;margin-bottom:6px}
+.field input,.field select,.edit-inp,#f-venc-years{background:#fff!important;border:1px solid var(--border2)!important;border-radius:8px!important;color:var(--text);font-size:14px;padding:10px 12px;transition:border-color .15s,box-shadow .15s}
+.field input:focus,.field select:focus,.edit-inp:focus,#f-venc-years:focus{border-color:var(--indigo)!important;background:#fff;box-shadow:0 0 0 3px rgba(45,42,234,.14)}
+.field input[type=checkbox]{padding:0}
+.ro label{background:#fff;border:1px solid var(--border2);border-radius:999px;padding:5px 12px;font-size:12.5px;color:var(--text2)}
+.ro label:hover{border-color:var(--indigo);color:var(--indigo)}
+.ro input[type=checkbox]:checked+label{background:var(--indigo);border-color:var(--indigo);color:#fff}
+.rg-section,.divider-label{color:var(--muted);text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:600}
+.ean-hint{font-family:var(--ui);color:var(--muted);font-size:11.5px}
+
+/* ── Botones ── */
+.btn{border-radius:8px;font-family:var(--ui);font-weight:600;font-size:13px;padding:10px 16px}
+.btn-dark{background:var(--indigo);color:#fff;box-shadow:0 4px 14px rgba(45,42,234,.22)}
+.btn-dark:hover{background:#2320c9}
+.btn-green{background:var(--indigo);color:#fff;box-shadow:0 4px 14px rgba(45,42,234,.22)}
+.btn-green:hover{background:#2320c9}
+.btn-outline{background:#fff;color:var(--text2);border:1px solid var(--border2)}
+.btn-outline:hover{border-color:var(--indigo);color:var(--indigo);background:var(--surf2)}
+.btn-sm{padding:6px 11px;font-size:12px}
+.btn-full{margin-top:8px;padding:12px 16px;font-size:14px}
+.btn-delete{background:#ffe6e6;color:var(--red);border:1px solid #f5c2c2}
+.btn-delete:hover{background:var(--red);color:#fff;border-color:var(--red)}
+
+/* ── Vista previa ── */
+.preview-wrap{top:76px}
+.pv-outer{background:#e6eaf5;border-radius:0;background-image:radial-gradient(circle at 1px 1px,#d5dbec 1px,transparent 0);background-size:16px 16px}
+
+/* ── Buscar ── */
+.search-bar{background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px;box-shadow:var(--sh)}
+.search-bar input{background:#fff;border:1px solid var(--border2);border-radius:8px;font-family:var(--ui);padding:10px 14px}
+.search-bar input:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(45,42,234,.14)}
+.cards-grid{gap:18px}
+.ecard{border:1px solid var(--border);border-radius:16px;box-shadow:var(--sh);transition:transform .18s,box-shadow .18s,border-color .18s}
+.ecard:hover{transform:translateY(-3px);border-color:#c9d3ff;box-shadow:0 12px 30px rgba(45,42,234,.12)}
+.ecard-thumb{background:#e6eaf5}
+.ecard-body{padding:14px 16px}
+.ecard-titulo{font-family:var(--ui);font-size:15px;font-weight:600;letter-spacing:-.1px}
+.ecard-sub{font-size:12.5px}
+.chip{background:var(--surf2);border:1px solid var(--border);border-radius:999px;font-family:var(--ui);font-size:11px;padding:2px 9px;color:var(--text2)}
+.empty{background:#fff;border:1px dashed var(--border2);border-radius:16px}
+.spinner{border-color:var(--pastel2);border-top-color:var(--indigo)}
+
+/* ── Modales ── */
+.modal-ov{background:rgba(20,20,45,.45)}
+.modal{border:none;border-radius:16px;box-shadow:0 24px 64px rgba(27,45,85,.22);padding:24px}
+.modal-hdr h2{font-family:var(--ui);font-size:19px;font-weight:700;letter-spacing:-.2px}
+.modal-close{width:36px;height:36px;border-radius:10px;background:var(--surf2);border:1px solid var(--border);font-size:16px;color:var(--text2)}
+.modal-close:hover{background:#ffe6e6;border-color:#f5c2c2;color:var(--red)}
+.print-qty-row{background:var(--pastel);border:1px solid var(--pastel2);border-radius:12px}
+.print-qty-row input{border:1px solid var(--pastel2);border-radius:8px;color:var(--indigo)}
+.mode-btn{border-radius:8px;border:1px solid var(--border2);background:#fff;font-family:var(--ui)}
+.mode-btn.active{background:var(--indigo);border-color:var(--indigo)}
+#modal-body>div:first-child{background:#e6eaf5!important;border-radius:12px!important}
+
+/* ── Gestor de logos ── */
+#lm-overlay{background:rgba(20,20,45,.45)}
+#lm-overlay .lm-modal{border-radius:16px;box-shadow:0 24px 64px rgba(27,45,85,.22)}
+#lm-overlay .lm-modal h3{font-size:19px;font-weight:700}
+#lm-overlay .lm-modal .lm-sub{color:var(--muted)}
+#lm-overlay .lm-row{border-top:1px solid var(--border)}
+#lm-overlay .lm-thumb{border:1px solid var(--border);border-radius:10px;background:var(--surf2)}
+#lm-overlay .lm-info small{color:var(--muted)}
+#lm-overlay .lm-acts button{border:1px solid var(--border2);border-radius:8px;background:#fff;font-family:var(--ui);font-weight:500}
+#lm-overlay .lm-acts button:hover{border-color:var(--indigo);color:var(--indigo);background:var(--surf2)}
+#lm-overlay .lm-acts button.lm-up{background:var(--indigo);border-color:var(--indigo);color:#fff}
+#lm-overlay .lm-acts button.lm-up:hover{background:#2320c9}
+#lm-overlay .lm-close{background:#fff;color:var(--text2);border:1px solid var(--border2);font-family:var(--ui);font-weight:600}
+#lm-overlay .lm-close:hover{border-color:var(--indigo);color:var(--indigo)}
+
+/* ── Avisos ── */
+#toast{border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(28,28,48,.15);font-family:var(--ui)}
+#toast.ok{border-left:4px solid var(--green);border-color:var(--border);color:var(--text)}
+#toast.ok::before{content:'✓  ';color:var(--green);font-weight:700}
+#toast.err{border-left:4px solid var(--red);border-color:var(--border);color:var(--red)}
+
+/* ── Celular y tablet ── */
+@media (max-width:900px){
+  #app-crear,#app-fragil{grid-template-columns:1fr}
+  .preview-wrap{position:static}
+  .topbar{height:auto;min-height:56px;padding:8px 12px;flex-wrap:wrap;row-gap:6px}
+  .logo{margin-right:auto}
+  .spacer{display:none}
+  .fb-status{order:2}
+  .tab-btn{order:3;padding:7px 11px;font-size:12.5px}
+  .app{padding:14px}
+  .cards-grid{grid-template-columns:1fr}
+}
+@media (hover:none) and (pointer:coarse){
+  input,select,textarea,.field input,.field select,.edit-inp,.search-bar input,#f-venc-years{font-size:16px!important}
 }
 </style>
 </head>
