@@ -752,7 +752,7 @@ body button,body input,body select,body textarea{font-family:var(--ui)}
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, runTransaction, setDoc }
+import { getFirestore, collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, runTransaction, setDoc, where }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 const cfg = {
   apiKey:"AIzaSyBdbwTXVTKY1v6T0QsOdBfXeBzS4heZwjs",
@@ -770,12 +770,13 @@ try {
   window.$doc=(id)=>doc(db,'etiquetas',id);
   window.$upd=updateDoc; window.$del=deleteDoc;
   window.$q=query; window.$ord=orderBy; window.$ts=serverTimestamp;
-  // Contador de lotes compartido entre equipos (colección etiketer_lotes)
-  window.$loteGet=async(k)=>{ const sn=await getDoc(doc(db,'etiketer_lotes',k)); return sn.exists()?(sn.data().n||0):0; };
-  window.$loteNext=(k,min)=>runTransaction(db, async tr=>{ const ref=doc(db,'etiketer_lotes',k); const sn=await tr.get(ref); const n=Math.max(sn.exists()?(sn.data().n||0):0, min||0)+1; tr.set(ref,{n, ts:serverTimestamp()},{merge:true}); return n; });
-  // Productos del "Formato Nuevo" (colección etiketer_formatos)
-  window.$fmtList=async()=>{ const sn=await getDocs(collection(db,'etiketer_formatos')); return sn.docs.map(d=>({...d.data(), id:d.id})); };
-  window.$fmtSet=(id,data)=>setDoc(doc(db,'etiketer_formatos',id), data);
+  // Contador de lotes y productos del "Formato Nuevo": se guardan dentro de la colección
+  // 'etiquetas' (la que ya tiene permisos) como documentos especiales sin created_at,
+  // así no aparecen en la lista de etiquetas (esa lista ordena por created_at).
+  window.$loteGet=async(k)=>{ const sn=await getDoc(doc(db,'etiquetas','lote__'+k)); return sn.exists()?(sn.data().n||0):0; };
+  window.$loteNext=(k,min)=>runTransaction(db, async tr=>{ const ref=doc(db,'etiquetas','lote__'+k); const sn=await tr.get(ref); const n=Math.max(sn.exists()?(sn.data().n||0):0, min||0)+1; tr.set(ref,{_tipo:'lote', n, ts:serverTimestamp()},{merge:true}); return n; });
+  window.$fmtList=async()=>{ const sn=await getDocs(query(collection(db,'etiquetas'), where('_tipo','==','formato'))); return sn.docs.map(d=>({...d.data(), id:d.data().id||d.id.replace(/^formato__/,'')})); };
+  window.$fmtSet=(id,data)=>setDoc(doc(db,'etiquetas','formato__'+id), {...data, id, _tipo:'formato'});
   document.getElementById('fb-dot').className='fb-dot ok';
   document.getElementById('fb-label').textContent='Firebase OK';
 } catch(e) {
@@ -1399,7 +1400,7 @@ async function cargar(){
   document.getElementById('lista').innerHTML = '<div class="loader"><div class="spinner"></div></div>';
   try {
     const snap = await window.$get(window.$q(window.$col('etiquetas'), window.$ord('created_at','desc')));
-    todas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    todas = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(e => !e._tipo);
     renderLista(todas);
   } catch(e){
     document.getElementById('lista').innerHTML =
@@ -1900,9 +1901,13 @@ async function fmtCargar(){
   try{
     if(window.$fmtList){
       const remotos=await window.$fmtList();
+      remotos.forEach(p=>{ delete p._tipo; });
       remotos.forEach(p=>{ const l=map[p.id]; if(!l || !l.upd || (p.upd||0)>=(l.upd||0)) map[p.id]=p; });
       remotos.forEach(p=>{ if(!loc[p.id] || (p.upd||0)>=(loc[p.id].upd||0)) loc[p.id]=p; });
       fmtLocalSet(loc);
+      // Subir a Firebase lo que quedó guardado solo en este navegador
+      const rem={}; remotos.forEach(p=>rem[p.id]=p);
+      Object.values(loc).forEach(p=>{ if(p && p.id && p.upd && (!rem[p.id] || (rem[p.id].upd||0)<p.upd)) window.$fmtSet(p.id,p).catch(e=>console.warn('Subir formato:',e)); });
     }
   }catch(e){ console.warn('Formatos sin Firebase:',e); }
   fmtLista=Object.values(map).filter(p=>p && !p.deleted).map(fmtNormalizar)
@@ -1912,8 +1917,9 @@ async function fmtPersistir(p){
   p.upd=Date.now();
   const data=fmtClon(p); delete data._nuevo;
   const loc=fmtLocal(); loc[p.id]=data; fmtLocalSet(loc);
-  if(window.$fmtSet){ try{ await window.$fmtSet(p.id, data); return 'firebase'; }catch(e){ console.warn('Guardar formato:',e); } }
-  return 'local';
+  if(!window.$fmtSet) return 'local: Firebase no cargó';
+  try{ await window.$fmtSet(p.id, data); return 'firebase'; }
+  catch(e){ console.warn('Guardar formato:',e); return 'local: '+(e.code||e.message||e); }
 }
 
 // ── Conversión entre producto y formulario ──
@@ -2040,7 +2046,7 @@ async function fmtGuardar(){
   if(i>=0) fmtLista[i]=fmtNormalizar(p); else fmtLista.push(fmtNormalizar(p));
   fmtLista.sort((a,b)=>(a.titulo||'').localeCompare(b.titulo||'','es'));
   fmtRenderSelect(); fmtSetSucio(false);
-  toast(dondeGuardo==='firebase' ? 'Producto guardado ✓' : 'Guardado solo en este navegador (sin Firebase)', dondeGuardo==='firebase'?'ok':'err');
+  toast(dondeGuardo==='firebase' ? 'Producto guardado en Firebase ✓' : 'Guardado solo en este navegador ('+dondeGuardo.slice(7)+')', dondeGuardo==='firebase'?'ok':'err');
 }
 async function fmtEliminar(){
   const cur=fmtLista.find(x=>x.id===fmtActualId); if(!cur) return;
