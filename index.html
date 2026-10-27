@@ -2349,9 +2349,15 @@ async function dibujarFicha(ctx, d, W, H){
 // ══ Ficha 10×7 cm (horizontal) ══ grilla 1000×700 (1 unidad = 0,1 mm)
 // Diseño pensado para impresora térmica: letra mínima ~2,4 mm, pesos 600–800, negro puro.
 // Si un bloque no cabe, primero achica un poco (hasta 86 %) y luego corta los últimos ítems.
+const FICHA107_MARGEN_MM=3; // margen de seguridad en todos los bordes de la etiqueta 10×7
 async function dibujarFicha107(ctx, d, W, H){
   await document.fonts.ready;
-  ctx.save(); ctx.scale(W/1000, H/700);
+  ctx.save();
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  // El diseño (1000×700 = 100×70 mm) se reduce y centra dentro del área segura
+  const mx=W*FICHA107_MARGEN_MM/100, my=H*FICHA107_MARGEN_MM/70;
+  const esc=Math.min((W-2*mx)/1000, (H-2*my)/700);
+  ctx.translate((W-1000*esc)/2, (H-700*esc)/2); ctx.scale(esc, esc);
   const K=fichaKit(ctx), {font,rr,icon}=K, v=d.v107;
   const NEG='#000';
   ctx.fillStyle='#fff'; ctx.fillRect(0,0,1000,700);
