@@ -6,7 +6,7 @@
 <title>Etiketer — Cybernetic SpA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Bebas+Neue&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Bebas+Neue&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 
 
@@ -729,11 +729,10 @@ body button,body input,body select,body textarea{font-family:var(--ui)}
       <details class="fi-det">
         <summary>✏️ Textos versión 10 × 7 (corta)</summary>
         <div class="fi-det-body">
-          <div class="ean-hint" style="margin:0 0 12px">Textos más cortos para la etiqueta chica. Si dejas un campo vacío se usa el de 15 × 10 (la letra se achica sola si no cabe). Modo de uso aquí: <b>Título | Texto</b>.</div>
-          <div class="field"><label>Descripción</label><textarea id="fi-c-desc" data-p rows="3"></textarea></div>
-          <div class="field"><label>Usos principales</label><textarea id="fi-c-usos" data-p rows="5"></textarea></div>
-          <div class="field"><label>Modo de uso</label><textarea id="fi-c-modo" data-p rows="4"></textarea></div>
-          <div class="field"><label>Precauciones</label><textarea id="fi-c-prec" data-p rows="6"></textarea></div>
+          <div class="ean-hint" style="margin:0 0 12px">Letra grande para impresora térmica: textos <b>muy cortos</b>. Usos: <b>icono | Título</b> (máx. 4, sin descripción). Modo de uso: <b>Título | Texto</b> (máx. 3). Precauciones: máx. 4 líneas cortas. Si algo no cabe, se cortan los últimos ítems en vez de achicar la letra. La descripción y la composición no van en 10 × 7.</div>
+          <div class="field"><label>Usos principales</label><textarea id="fi-c-usos" data-p rows="4"></textarea></div>
+          <div class="field"><label>Modo de uso</label><textarea id="fi-c-modo" data-p rows="3"></textarea></div>
+          <div class="field"><label>Precauciones</label><textarea id="fi-c-prec" data-p rows="4"></textarea></div>
           <div class="field"><label>Pie (máx. 2 líneas)</label><textarea id="fi-c-footer" data-p rows="2"></textarea></div>
         </div>
       </details>
@@ -1789,7 +1788,7 @@ const FICHA_ICONS={
 };
 const FICHA_ICON_NOMBRES={shirt:'Ropa',house:'Casa',plates:'Platos',paw:'Mascota',leaf:'Hoja',washer:'Lavadora',basin:'Fuente',spray:'Spray',sparkle:'Brillo',bath:'Baño',fridge:'Refrigerador',pot:'Olla',drop:'Gota'};
 const FMT_FOOTER150=['DMP es una marca de Cybernetic SpA,','Providencia, Santiago de Chile.','https://distribuidoramp.cl/'];
-const FMT_FOOTER107=['DMP es una marca de Cybernetic SpA,','Providencia, Santiago · distribuidoramp.cl'];
+const FMT_FOOTER107=['Cybernetic SpA · Providencia','distribuidoramp.cl'];
 const FMT_PREC_BASE=['Mantener en lugar seco, fresco y ventilado.','Utilice siempre EPP (Elementos de Protección Personal) adecuado.','Evite el contacto con ojos y piel.','Mantener fuera del alcance de niños y mascotas.','No ingerir.','En caso de intoxicación consulte a su médico o llame al CITUC: 02 2635 3800 — Atención 24hrs.'];
 const FMT_CONT_OPTS=['100 Gramos','250 Gramos','500 Gramos','1 Kilo','5 Kilos','10 Kilos','25 Kilos'];
 
@@ -1814,21 +1813,19 @@ const FMT_SEEDS=[
     composicion:['Percarbonato de sodio','(Na₂CO₃ · 1,5 H₂O₂).'],
     precauciones:FMT_PREC_BASE.slice(),
     footer:FMT_FOOTER150.slice(),
-    c107:{
-      descripcion:'Agente blanqueador y desmanchador de oxígeno activo. Elimina manchas, olores y suciedad. Biodegradable.',
+    c107:{ v:2,
       usos:[
-        {i:'shirt',t:'Ropa blanca y de color',d:'Blanquea y elimina manchas.'},
-        {i:'house',t:'Hogar y superficies',d:'Limpieza profunda y desinfección.'},
-        {i:'plates',t:'Cocina y utensilios',d:'Elimina manchas y olores.'},
-        {i:'paw',t:'Mascotas',d:'Camas, mantas y áreas de mascotas.'},
-        {i:'leaf',t:'Multiusos',d:'Textiles, cerámicas y plásticos.'}
+        {i:'shirt',t:'Ropa blanca y de color',d:''},
+        {i:'house',t:'Hogar y superficies',d:''},
+        {i:'plates',t:'Cocina y utensilios',d:''},
+        {i:'paw',t:'Áreas de mascotas',d:''}
       ],
       modo:[
-        {t:'Lavado de ropa:',d:'1–2 cucharadas (15–30 g) junto con el detergente.'},
-        {t:'Remojo:',d:'1–2 cucharadas en 5 L de agua tibia (40–60 °C). Dejar 30–60 min y enjuagar.'},
-        {t:'Superficies:',d:'1 cucharada en 1 L de agua tibia. Aplicar, dejar actuar y enjuagar.'}
+        {t:'Ropa:',d:'1–2 cdas. con el detergente.'},
+        {t:'Remojo:',d:'2 cdas. en 5 L de agua tibia por 1 h.'},
+        {t:'Superficies:',d:'1 cda. en 1 L de agua tibia.'}
       ],
-      precauciones:['Mantener en lugar seco, fresco y ventilado.','Usar EPP adecuado.','Evitar contacto con ojos y piel.','Fuera del alcance de niños y mascotas.','No ingerir.','Intoxicación: CITUC 02 2635 3800 (24 h).'],
+      precauciones:['No ingerir.','Lejos de niños y mascotas.','Usar guantes. Evitar ojos.','CITUC: 02 2635 3800'],
       footer:FMT_FOOTER107.slice()
     }
   },
@@ -1851,21 +1848,19 @@ const FMT_SEEDS=[
     composicion:['Bicarbonato de sodio','(NaHCO₃).'],
     precauciones:['Mantener en lugar seco, fresco y en envase bien cerrado.','Utilice EPP (Elementos de Protección Personal) adecuado y evite el contacto con los ojos.','No mezclar con ácidos o vinagre en envases cerrados.','En aluminio, madera o superficies delicadas, probar antes en zona poco visible.','Mantener fuera del alcance de niños y mascotas. No ingerir.','En caso de intoxicación consulte a su médico o llame al CITUC: 02 2635 3800 — Atención 24hrs.'],
     footer:FMT_FOOTER150.slice(),
-    c107:{
-      descripcion:'Limpiador suave y alcalino. Desengrasa, remueve suciedad y neutraliza olores sin rayar.',
+    c107:{ v:2,
       usos:[
-        {i:'pot',t:'Cocina',d:'Ollas, hornos y cubiertas.'},
-        {i:'bath',t:'Baños',d:'Azulejos, juntas y sanitarios.'},
-        {i:'fridge',t:'Neutraliza olores',d:'Refrigerador, alfombras y calzado.'},
-        {i:'shirt',t:'Ropa',d:'Refuerza el detergente.'},
-        {i:'sparkle',t:'Multiusos',d:'Cerámicas, plásticos y acero.'}
+        {i:'pot',t:'Cocina y hornos',d:''},
+        {i:'bath',t:'Baños',d:''},
+        {i:'fridge',t:'Quita olores',d:''},
+        {i:'shirt',t:'Ropa',d:''}
       ],
       modo:[
-        {t:'Pasta limpiadora:',d:'3 partes de bicarbonato y 1 de agua. Frotar y enjuagar.'},
-        {t:'Solución multiuso:',d:'2 cucharadas en 1 L de agua tibia. Aplicar y enjuagar.'},
-        {t:'Lavado de ropa:',d:'½ taza junto con el detergente.'}
+        {t:'Pasta:',d:'3 partes + 1 de agua. Frotar y enjuagar.'},
+        {t:'Multiuso:',d:'2 cdas. en 1 L de agua tibia.'},
+        {t:'Ropa:',d:'½ taza con el detergente.'}
       ],
-      precauciones:['Mantener en lugar seco y cerrado.','Usar EPP adecuado.','Evitar contacto con ojos.','No mezclar con ácidos en envase cerrado.','Fuera del alcance de niños y mascotas.','Intoxicación: CITUC 02 2635 3800 (24 h).'],
+      precauciones:['No ingerir.','Lejos de niños y mascotas.','No mezclar con ácidos.','CITUC: 02 2635 3800'],
       footer:FMT_FOOTER107.slice()
     }
   }
@@ -1880,7 +1875,7 @@ function fmtLocalSet(o){ try{ localStorage.setItem(FMT_LS, JSON.stringify(o)); }
 function fmtNormalizar(p){
   const b={titulo:'',destacado:'',sello:'',selloIcon:'leaf',logo:'dmp',contenido:'1 Kilo',ean150:'',ean107:'',descripcion:'',usos:[],modo:[],composicion:[],precauciones:[],footer:FMT_FOOTER150.slice()};
   const q=Object.assign(b, p||{});
-  q.c107=Object.assign({descripcion:'',usos:[],modo:[],precauciones:[],footer:FMT_FOOTER107.slice()}, (p&&p.c107)||{});
+  q.c107=Object.assign({v:2,usos:[],modo:[],precauciones:[],footer:FMT_FOOTER107.slice()}, (p&&p.c107)||{});
   return q;
 }
 async function fmtCargar(){
@@ -1910,6 +1905,12 @@ async function fmtCargar(){
       Object.values(loc).forEach(p=>{ if(p && p.id && p.upd && (!rem[p.id] || (rem[p.id].upd||0)<p.upd)) window.$fmtSet(p.id,p).catch(e=>console.warn('Subir formato:',e)); });
     }
   }catch(e){ console.warn('Formatos sin Firebase:',e); }
+  // Los textos 10×7 anteriores eran demasiado largos para la térmica: se reemplazan por la versión corta (v:2)
+  Object.values(map).forEach(p=>{
+    if(!p || p.deleted || (p.c107 && p.c107.v>=2)) return;
+    const seed=FMT_SEEDS.find(x=>x.id===p.id);
+    p.c107 = seed ? fmtClon(seed.c107) : {v:2, usos:[], modo:[], precauciones:[], footer:FMT_FOOTER107.slice()};
+  });
   fmtLista=Object.values(map).filter(p=>p && !p.deleted).map(fmtNormalizar)
     .sort((a,b)=>(a.titulo||'').localeCompare(b.titulo||'','es'));
 }
@@ -1963,7 +1964,7 @@ function fmtFromForm(){
     precauciones: fmtLineas(fmtVal('fi-t-prec')),
     footer: fmtLineas(fmtVal('fi-t-footer')).slice(0,3),
     c107:{
-      descripcion: fmtVal('fi-c-desc'),
+      v: 2,
       usos: fmtParseIco(fmtVal('fi-c-usos')),
       modo: fmtParsePaso(fmtVal('fi-c-modo')),
       precauciones: fmtLineas(fmtVal('fi-c-prec')),
@@ -1982,7 +1983,7 @@ function fmtToForm(p){
   fmtSet('fi-t-desc',p.descripcion); fmtSet('fi-t-usos',fmtTxtIco(p.usos)); fmtSet('fi-t-modo',fmtTxtIco(p.modo));
   fmtSet('fi-t-comp',(p.composicion||[]).join('\n')); fmtSet('fi-t-prec',(p.precauciones||[]).join('\n')); fmtSet('fi-t-footer',(p.footer||[]).join('\n'));
   const c=p.c107||{};
-  fmtSet('fi-c-desc',c.descripcion); fmtSet('fi-c-usos',fmtTxtIco(c.usos)); fmtSet('fi-c-modo',fmtTxtPaso(c.modo));
+  fmtSet('fi-c-usos',fmtTxtIco(c.usos)); fmtSet('fi-c-modo',fmtTxtPaso(c.modo));
   fmtSet('fi-c-prec',(c.precauciones||[]).join('\n')); fmtSet('fi-c-footer',(c.footer||[]).join('\n'));
 }
 function fmtEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -2115,7 +2116,6 @@ function fichaDatos(){
     lote: null
   });
   d.v107={
-    descripcion: c.descripcion || p.descripcion,
     usos: c.usos.length ? c.usos : p.usos,
     modo: c.modo.length ? c.modo : p.modo.map(m=>({t:m.t, d:m.d})),
     precauciones: c.precauciones.length ? c.precauciones : p.precauciones,
@@ -2347,68 +2347,137 @@ async function dibujarFicha(ctx, d, W, H){
 }
 
 // ══ Ficha 10×7 cm (horizontal) ══ grilla 1000×700 (1 unidad = 0,1 mm)
+// Diseño pensado para impresora térmica: letra mínima ~2,4 mm, pesos 600–800, negro puro.
+// Si un bloque no cabe, primero achica un poco (hasta 86 %) y luego corta los últimos ítems.
 async function dibujarFicha107(ctx, d, W, H){
   await document.fonts.ready;
   ctx.save(); ctx.scale(W/1000, H/700);
   const K=fichaKit(ctx), {font,rr,icon}=K, v=d.v107;
+  const NEG='#000';
   ctx.fillStyle='#fff'; ctx.fillRect(0,0,1000,700);
   ctx.textBaseline='alphabetic';
+  const HB=44;
   const box=(x,y,w,h,title)=>{
-    ctx.lineWidth=2.4; ctx.strokeStyle='#111'; rr(x,y,w,h,10); ctx.stroke();
-    ctx.save(); rr(x,y,w,h,10); ctx.clip(); ctx.fillStyle='#111'; ctx.fillRect(x,y,w,30); ctx.restore();
-    ctx.fillStyle='#fff'; font('bold',16.5); ctx.textAlign='left'; ctx.fillText(title,x+12,y+21.5);
-    ctx.fillStyle='#111';
+    ctx.lineWidth=4; ctx.strokeStyle=NEG; rr(x,y,w,h,10); ctx.stroke();
+    ctx.save(); rr(x,y,w,h,10); ctx.clip(); ctx.fillStyle=NEG; ctx.fillRect(x,y,w,HB); ctx.restore();
+    let fs=28; font('800',fs); while(ctx.measureText(title).width>w-24 && fs>20){ fs--; font('800',fs); }
+    ctx.fillStyle='#fff'; ctx.textAlign='left'; ctx.fillText(title,x+13,y+31);
+    ctx.fillStyle=NEG;
   };
-  ctx.lineWidth=4; ctx.strokeStyle='#111'; rr(10,10,980,680,22); ctx.stroke();
+  // Texto enriquecido (negrita + normal en la misma línea)
+  const rich=(parts,maxW,fs)=>{
+    const words=[]; parts.forEach(p=>String(p.t||'').split(/\s+/).filter(Boolean).forEach(w=>words.push({w,b:!!p.b})));
+    font('600',fs); const sp=ctx.measureText(' ').width;
+    const lines=[]; let cur=[], cx=0;
+    words.forEach(o=>{
+      font(o.b?'800':'600',fs); const ww=ctx.measureText(o.w).width;
+      if(cur.length && cx+sp+ww>maxW){ lines.push(cur); cur=[]; cx=0; }
+      const x=cur.length?cx+sp:0; cur.push({w:o.w,b:o.b,x}); cx=x+ww;
+    });
+    if(cur.length) lines.push(cur);
+    return lines;
+  };
+  const drawRich=(line,x,y,fs)=>line.forEach(o=>{ font(o.b?'800':'600',fs); ctx.fillText(o.w,x+o.x,y); });
+  const fitCut=(x,top,w,h,items,mk,kMin)=>{
+    kMin=kMin||0.86;
+    for(let n=items.length;n>=1;n--){
+      const fn=mk(items.slice(0,n));
+      for(let k=1;k>=kMin-1e-6;k-=0.02){
+        if(fn(k,false)<=h){ ctx.save(); ctx.beginPath(); ctx.rect(x,top,w,h); ctx.clip(); ctx.fillStyle=NEG; ctx.textAlign='left'; fn(k,true); ctx.restore(); return; }
+      }
+    }
+    if(items.length){ ctx.save(); ctx.beginPath(); ctx.rect(x,top,w,h); ctx.clip(); ctx.fillStyle=NEG; ctx.textAlign='left'; mk(items.slice(0,1))(kMin,true); ctx.restore(); }
+  };
+  // Modo de uso: "Título: texto" en línea
+  const pasos=(x,top,w,fs,gap)=>items=>(k,draw)=>{
+    const f=fs*k, lh=f*1.2; let y=top+f*0.95, last=top;
+    items.forEach(it=>{
+      rich([{t:it.t,b:1},{t:it.d}],w,f).forEach(l=>{ if(draw) drawRich(l,x,y,f); last=y; y+=lh; });
+      y+=gap*k;
+    });
+    return last-top+f*0.3;
+  };
+  // Viñetas
+  const vinetas=(x,top,w,fs,gap)=>items=>(k,draw)=>{
+    const f=fs*k, lh=f*1.18, ind=f*0.85; let y=top+f*0.95, last=top;
+    items.forEach(p=>{
+      rich([{t:p}],w-ind,f).forEach((l,j)=>{
+        if(draw){ if(j===0){ ctx.beginPath(); ctx.arc(x+f*0.25,y-f*0.33,f*0.15,0,Math.PI*2); ctx.fill(); } drawRich(l,x+ind,y,f); }
+        last=y; y+=lh;
+      });
+      y+=gap*k;
+    });
+    return last-top+f*0.3;
+  };
+  // Usos: ícono + título (sin descripción)
+  const usos=(x,top,w,fs,ic)=>items=>(k,draw)=>{
+    const f=fs*k, isz=ic*k, gap=14*k, tw=w-isz-gap-6, lh=f*1.12; let y=top;
+    items.forEach(it=>{
+      const ls=rich([{t:it.t,b:1}],tw,f);
+      const th=ls.length*lh, rowH=Math.max(isz, th);
+      if(draw){
+        icon(it.i,x,y+(rowH-isz)/2,isz,false,2.4);
+        ctx.fillStyle=NEG; ctx.textAlign='left';
+        const ty=y+(rowH-th)/2+f*0.86;
+        ls.forEach((l,j)=>drawRich(l,x+isz+gap,ty+j*lh,f));
+      }
+      y+=rowH+12*k;
+    });
+    return y-12*k-top;
+  };
 
-  // ── Columna izquierda: modo de uso y precauciones ──
-  const LX=26, CWL=300;
-  box(LX,26,CWL,296,'MODO DE USO');
-  K.fit(296-37-10, K.pasos(v.modo, LX+12, 26+37, CWL-24, 14.5, 17/14.5, 6));
-  box(LX,334,CWL,246,'PRECAUCIONES');
-  K.fit(246-37-10, K.vinetas(v.precauciones, LX+12, 334+37, CWL-24, 14.5, 17/14.5, 2, 2.8, 15));
+  // ── Columnas ──
+  const LX=16, LW=318, RX=666, RW=318, CX=500, CW=312;
 
-  // ── Columna derecha: usos, composición y descripción ──
-  const RX=674, CWR=300;
-  box(RX,26,CWR,332,'USOS PRINCIPALES');
-  K.fit(332-40-4, K.iconos(v.usos, RX, 26+40, 332-40-4, CWR, {pad:10,icon:34,gap:10,rm:10,tfs:14.5,toff:15,dfs:13,doff:32,dlh:15,lw:1.9}));
-  box(RX,368,CWR,84,'COMPOSICIÓN');
-  K.fit(84-37-6, K.parrafo((d.composicion||[]).join('\n'), RX+12, 368+37, CWR-24, 14.5, 18/14.5));
-  box(RX,462,CWR,118,'DESCRIPCIÓN');
-  K.fit(118-36-8, K.parrafo(v.descripcion, RX+12, 462+36, CWR-24, 14, 16.5/14));
+  // Izquierda: modo de uso + precauciones
+  box(LX,16,LW,410,'MODO DE USO');
+  fitCut(LX+12,16+HB+6,LW-22,410-HB-14,(v.modo||[]).slice(0,3),pasos(LX+12,16+HB+8,LW-24,30,16));
+  box(LX,438,LW,246,'PRECAUCIONES');
+  fitCut(LX+12,438+HB+4,LW-22,246-HB-12,(v.precauciones||[]).slice(0,4),vinetas(LX+12,438+HB+4,LW-24,26,4));
 
-  // ── Centro: logo, título, destacado, sello, contenido ──
-  const CX=500, CW=320;
+  // Derecha: usos + lote/vence + código de barras
+  box(RX,16,RW,410,'USOS PRINCIPALES');
+  fitCut(RX+12,16+HB+12,RW-22,410-HB-22,(v.usos||[]).slice(0,4),usos(RX+14,16+HB+12,RW-28,29,54));
+  const rows=[]; if(d.lote) rows.push(['LOTE:',d.lote]); if(d.venc){ const [vy,vm]=d.venc.split('-'); rows.push(['VENCE:',vm+'/'+vy]); }
+  ctx.fillStyle=NEG; ctx.textAlign='left';
+  rows.forEach(([l,val],i)=>{
+    const y=466+i*40;
+    font('800',23); ctx.fillText(l,RX+6,y);
+    const lw=ctx.measureText(l+' ').width;
+    let fs=30; font('800',fs); while(ctx.measureText(val).width>RW-lw-10 && fs>20){ fs--; font('800',fs); }
+    ctx.fillText(val,RX+6+lw,y);
+  });
+  K.barcode(d.ean13, RX+4, 686, RW-8, 150);
+
+  // Centro: logo, título, destacado, sello, contenido, pie
   const logo=await K.img(getLogo(d.logo||'dmp'));
-  if(logo) K.contain(logo,CX,28,230,100);
-  else { ctx.fillStyle='#111'; ctx.textAlign='center'; font('',64,K.COND); ctx.fillText(LOGO_TEXT[d.logo]||'DMP',CX,104); }
-  K.titulo(d.titulo, CX, 142, 134, CW, 110, 26);
-  let y=290;
+  if(logo) K.contain(logo,CX,16,250,96);
+  else { ctx.fillStyle=NEG; ctx.textAlign='center'; font('',70,K.COND); ctx.fillText(LOGO_TEXT[d.logo]||'DMP',CX,96); }
+  K.titulo(d.titulo, CX, 120, 150, CW, 124, 48);
+  let y=284;
   ctx.textAlign='center';
   const dest=(d.destacado||'').toUpperCase().trim();
-  if(dest){ let fs=24; font('bold',fs); while(ctx.measureText(dest).width>CW-50 && fs>12){ fs-=1; font('bold',fs); } const pw=Math.min(CW,ctx.measureText(dest).width+48); ctx.fillStyle='#111'; rr(CX-pw/2,y,pw,40,13); ctx.fill(); ctx.fillStyle='#fff'; ctx.fillText(dest,CX,y+28); y+=56; } else y+=8;
+  if(dest){
+    let fs=28; font('800',fs); while(ctx.measureText(dest).width>CW-36 && fs>18){ fs--; font('800',fs); }
+    const pw=Math.min(CW,ctx.measureText(dest).width+40);
+    ctx.fillStyle=NEG; rr(CX-pw/2,y,pw,46,14); ctx.fill(); ctx.fillStyle='#fff'; ctx.fillText(dest,CX,y+33);
+    y+=62;
+  } else y+=10;
   const sello=(d.sello||'').trim();
   if(sello){
-    let fs=20; font('bold',fs); while(ctx.measureText(sello).width>CW-50 && fs>12){ fs-=1; font('bold',fs); }
-    const bw=ctx.measureText(sello).width, bx=CX-(bw+32)/2;
-    icon(d.selloIcon||'leaf',bx,y,26,true); ctx.fillStyle='#111'; ctx.textAlign='left'; ctx.fillText(sello,bx+32,y+20);
+    let fs=26; font('800',fs); while(ctx.measureText(sello).width>CW-50 && fs>18){ fs--; font('800',fs); }
+    const bw=ctx.measureText(sello).width, bx=CX-(bw+38)/2;
+    icon(d.selloIcon||'leaf',bx,y,30,true); ctx.fillStyle=NEG; ctx.textAlign='left'; ctx.fillText(sello,bx+38,y+25);
   }
-  ctx.fillStyle='#111'; ctx.textAlign='center'; font('bold',15); ctx.fillText('CONTENIDO NETO',CX,458);
-  const cont=d.contenido||''; let cfs=46; font('bold',cfs); while(ctx.measureText(cont).width>CW-60 && cfs>20){ cfs-=2; font('bold',cfs); }
-  ctx.fillText(cont,CX,510);
-  const cw=ctx.measureText(cont).width, a0=cw/2+14, a1=Math.min(cw/2+70, CW/2);
-  if(a1-a0>=20){ ctx.lineWidth=2.2; ctx.beginPath(); ctx.moveTo(CX-a1,494); ctx.lineTo(CX-a0,494); ctx.moveTo(CX+a0,494); ctx.lineTo(CX+a1,494); ctx.stroke(); }
-
-  // ── Pie: lote, vencimiento, empresa y código de barras ──
-  ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(26,594); ctx.lineTo(674,594); ctx.stroke();
-  ctx.textAlign='left'; ctx.fillStyle='#111';
-  const rows=[]; if(d.lote) rows.push(['LOTE:',d.lote]); if(d.venc){ const [vy,vm]=d.venc.split('-'); rows.push(['VENCE:',vm+'/'+vy]); }
-  rows.forEach(([l,val],i)=>{ font('bold',14.5); ctx.fillText(l,32,628+i*32); const lw=ctx.measureText(l+' ').width; font('bold',21); ctx.fillText(val,32+lw,628+i*32); });
-  ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(318,608); ctx.lineTo(318,668); ctx.stroke();
+  ctx.fillStyle=NEG; ctx.textAlign='center'; font('800',22); ctx.fillText('CONTENIDO NETO',CX,462);
+  const cont=d.contenido||''; let cfs=60; font('800',cfs); while(ctx.measureText(cont).width>CW-40 && cfs>28){ cfs-=2; font('800',cfs); }
+  ctx.fillText(cont,CX,528);
+  const cw=ctx.measureText(cont).width, a0=cw/2+12, a1=Math.min(cw/2+60, CW/2);
+  if(a1-a0>=16){ ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(CX-a1,508); ctx.lineTo(CX-a0,508); ctx.moveTo(CX+a0,508); ctx.lineTo(CX+a1,508); ctx.stroke(); }
+  ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(CX-CW/2+10,580); ctx.lineTo(CX+CW/2-10,580); ctx.stroke();
   const pie=(v.footer||[]).slice(0,2);
-  let pfs=13.5; font('',pfs); while(pfs>10 && pie.some(l=>ctx.measureText(l).width>330)){ pfs-=0.5; font('',pfs); }
-  pie.forEach((l,i)=>ctx.fillText(l,334,632+i*22));
-  K.barcode(d.ean13, 690, 678, 284, 92);
+  let pfs=23; font('700',pfs); while(pfs>18 && pie.some(l=>ctx.measureText(l).width>CW-6)){ pfs-=0.5; font('700',pfs); }
+  pie.forEach((l,i)=>ctx.fillText(l,CX,624+i*34));
   ctx.restore();
 }
 
@@ -2427,9 +2496,19 @@ function fichaSetFmt(f, sinRender){
   try{ localStorage.setItem('etiketer_ficha_fmt', f); }catch(e){}
   if(!sinRender) renderFicha();
 }
+// Convierte a blanco y negro puro: la impresora térmica convierte los grises del suavizado en puntos difusos
+function fichaBinarizar(cv){
+  const c=cv.getContext('2d'), im=c.getImageData(0,0,cv.width,cv.height), a=im.data;
+  for(let i=0;i<a.length;i+=4){
+    const l=a[i]*0.299+a[i+1]*0.587+a[i+2]*0.114;
+    const v=(a[i+3]<128 || l>165) ? 255 : 0;
+    a[i]=a[i+1]=a[i+2]=v; a[i+3]=255;
+  }
+  c.putImageData(im,0,0);
+}
 async function fichaPaginas(qty, d){
   const F=FICHA_FMT[fichaFmt()], out=[];
-  for(let i=0;i<qty;i++){ const cv=document.createElement('canvas'); cv.width=F.w; cv.height=F.h; await F.draw(cv.getContext('2d'),d,F.w,F.h); out.push(cv.toDataURL('image/png')); }
+  for(let i=0;i<qty;i++){ const cv=document.createElement('canvas'); cv.width=F.w; cv.height=F.h; await F.draw(cv.getContext('2d'),d,F.w,F.h); fichaBinarizar(cv); out.push(cv.toDataURL('image/png')); }
   return out;
 }
 function fichaValidarImpresion(d){
